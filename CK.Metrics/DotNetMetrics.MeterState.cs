@@ -1,11 +1,10 @@
-using System.Diagnostics;
+using CK.Core;
 using System.Diagnostics.Metrics;
-using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
 
-namespace CK.Core;
+namespace CK.Metrics;
 
 public static partial class DotNetMetrics
 {
@@ -18,11 +17,32 @@ public static partial class DotNetMetrics
         readonly int _meterId;
         readonly string _jsonDesc;
 
-        MeterState( Meter meter, int id, string jsonDesc )
+        MeterState( Meter meter, int id, StringBuilder b )
         {
             _meter = meter;
             _meterId = id;
-            _jsonDesc = jsonDesc;
+            _jsonDesc = Write( b, id, meter );
+
+            static string Write( StringBuilder b, int id, Meter meter )
+            {
+                Throw.DebugAssert( b.Length == 0 );
+                var w = new StringWriter( b );
+                b.Append( id ).Append( ",\"" );
+                JavaScriptEncoder.Default.Encode( w, meter.Name );
+                b.Append( "\",\"" ).Append( meter.Version );
+                b.Append( "\",\"" );
+#if NET10_0_OR_GREATER
+                if( meter.TelemetrySchemaUrl != null )
+                {
+                    JavaScriptEncoder.Default.Encode( w, meter.TelemetrySchemaUrl );
+                }
+#endif
+                b.Append( "\",[" );
+                if( meter.Tags != null ) WriteTags( b, w, meter.Tags );
+                b.Append( ']' );
+                return b.ToString();
+            }
+
         }
 
         public Meter Meter => _meter;
@@ -45,8 +65,7 @@ public static partial class DotNetMetrics
             {
                 throw new CKException( error.ToString() );
             }
-            Write( b, meter );
-            return new MeterState( meter, ++_currentMeterId, b.ToString() );
+            return new MeterState( meter, ++_currentMeterId, b );
 
             static void Validate( ref StringBuilder? error, StringBuilder warning, Meter meter )
             {
@@ -69,28 +88,12 @@ public static partial class DotNetMetrics
                     }
                 }
             }
-
-            static void Write( StringBuilder b, Meter meter )
-            {
-                var w = new StringWriter( b );
-                b.Append( '"' );
-                JavaScriptEncoder.Default.Encode( w, meter.Name );
-                b.Append( "\",\"" ).Append( meter.Version );
-                b.Append( "\",\"" );
-#if NET10_0_OR_GREATER
-                if( meter.TelemetrySchemaUrl != null )
-                {
-                    JavaScriptEncoder.Default.Encode( w, meter.TelemetrySchemaUrl );
-                }
-#endif
-                b.Append( "\",[" );
-                if( meter.Tags != null ) WriteTags( b, w, meter.Tags );
-                b.Append( ']' );
-            }
         }
 
+        public override string ToString() => _jsonDesc;
+
         [GeneratedRegex( "^[a-z][_a-z0-9]*(\\.[_a-z0-9]*)*$", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant )]
-        internal static partial Regex MeterNameRegex();
+        private static partial Regex MeterNameRegex();
 
     }
      

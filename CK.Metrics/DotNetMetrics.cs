@@ -1,13 +1,10 @@
-using System;
+using CK.Core;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 
-namespace CK.Core;
+namespace CK.Metrics;
 
 public static partial class DotNetMetrics
 {
@@ -41,13 +38,13 @@ public static partial class DotNetMetrics
         _meters = new Dictionary<Meter, MeterState>();
         _instruments = new ConcurrentDictionary<Instrument, InstrumentState>();
         _listener = new MeterListener();
-        _listener.SetMeasurementEventCallback<byte>( MeasurementHandler );
-        _listener.SetMeasurementEventCallback<short>( MeasurementHandler );
-        _listener.SetMeasurementEventCallback<int>( MeasurementHandler );
-        _listener.SetMeasurementEventCallback<long>( MeasurementHandler );
-        _listener.SetMeasurementEventCallback<float>( MeasurementHandler );
-        _listener.SetMeasurementEventCallback<double>( MeasurementHandler );
-        _listener.SetMeasurementEventCallback<decimal>( MeasurementHandler );
+        _listener.SetMeasurementEventCallback<byte>( static ( i, m, t, s ) => ((InstrumentState<byte>)s!).HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<short>( static ( i, m, t, s ) => ((InstrumentState<short>)s!).HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<int>( static ( i, m, t, s ) => ((InstrumentState<int>)s!).HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<long>( static ( i, m, t, s ) => ((InstrumentState<long>)s!).HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<float>( static ( i, m, t, s ) => ((InstrumentState<float>)s!).HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<double>( static ( i, m, t, s ) => ((InstrumentState<double>)s!).HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<decimal>( static ( i, m, t, s ) => ((InstrumentState<decimal>)s!).HandleMeasure( m, t ) );
         _listener.InstrumentPublished = OnInstrumentPublished;
         _listener.MeasurementsCompleted = OnMeasurementsCompleted;
         _listener.Start();
@@ -107,14 +104,14 @@ public static partial class DotNetMetrics
         }
         if( newMeter )
         {
-            b.Clear().Append( "+Meter[" );
-            WriteMeterInfoAndSendMetricLog( mState, b );
+            b.Clear().Append( "+Meter[" ).Append( mState.JsonDescription ).Append( ']' );
+            SendMetricLog( b.ToString() );
             b.Clear();
         }
         var iState = InstrumentState.Create( mState, instrument, b );
         Throw.CheckState( _instruments.TryAdd( instrument, iState ) );
-        b.Clear();
-        OnInstrumentAppeared( iState, b );
+        b.Clear().Append( "+Instrument[" ).Append( iState.JsonDescription ).Append( ']' ); 
+        SendMetricLog( b.ToString() ); ;
     }
 
     static void OnMeasurementsCompleted( Instrument instrument, object? state )
@@ -133,28 +130,10 @@ public static partial class DotNetMetrics
             }
             if( meter != null )
             {
-                WriteMeterInfoAndSendMetricLog( meter, new StringBuilder( "-Meter[" ) );
+                var b = new StringBuilder( "-Meter[" ).Append( meter.JsonDescription ).Append( ']' );
+                SendMetricLog( b.ToString() );
             }
         }
-    }
-
-    static void WriteMeterInfoAndSendMetricLog( MeterState meter, StringBuilder b )
-    {
-        b.Append( meter.MeterId ).Append( ',' )
-          .Append( meter.JsonDescription )
-          .Append( ']' );
-        SendMetricLog( b.ToString() );
-    }
-
-    static void OnInstrumentAppeared( InstrumentState iState, StringBuilder b )
-    {
-        Throw.DebugAssert( b.Length == 0 );
-        b.Append( "+Instrument[" )
-            .Append( iState.Meter.MeterId ).Append( ',' )
-            .Append( iState.InstrumentId ).Append( ',' )
-            .Append( iState.JsonDescription )
-            .Append( ']' );
-        SendMetricLog( b.ToString() );
     }
 
     static void SendMetricLog( string text )
@@ -167,22 +146,6 @@ public static partial class DotNetMetrics
                                                                               lineNumber: 1,
                                                                               isOpenGroup: false );
         ActivityMonitor.StaticLogger.UnfilteredLog( ref data );
-    }
-
-    static void MeasurementHandler<T>( Instrument instrument, T measurement, ReadOnlySpan<KeyValuePair<string, object?>> tags, object? state ) where T : struct
-    {
-        if( state is InstrumentState iState && iState.IsEnabled )
-        {
-            var text = $"{iState.InstrumentId}:{measurement}";
-            var data = ActivityMonitor.StaticLogger.CreateActivityMonitorLogData( LogLevel.Trace | LogLevel.IsFiltered,
-                                                                                  _tag,
-                                                                                  text,
-                                                                                  exception: null,
-                                                                                  fileName: _filePath,
-                                                                                  lineNumber: 1,
-                                                                                  isOpenGroup: false );
-            ActivityMonitor.StaticLogger.UnfilteredLog( ref data );
-        }
     }
 
 }

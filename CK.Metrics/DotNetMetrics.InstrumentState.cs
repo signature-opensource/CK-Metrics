@@ -1,10 +1,11 @@
+using CK.Core;
 using System.Diagnostics.Metrics;
-using System.IO;
+using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
 
-namespace CK.Core;
+namespace CK.Metrics;
 
 public static partial class DotNetMetrics
 {
@@ -18,6 +19,7 @@ public static partial class DotNetMetrics
         readonly MeterState _meter;
         InstrumentState? _next;
         readonly int _instrumentId;
+        protected string _sInstrumentId;
         bool _codeEnabled;
         bool _configEnabled;
         bool _expectOnMeasurementsCompleted;
@@ -89,78 +91,29 @@ public static partial class DotNetMetrics
             }
         }
 
-        InstrumentState( MeterState meter, Instrument instrument, int id, string jsonDesc )
+        protected InstrumentState( MeterState meter,
+                                   Instrument instrument,
+                                   int id,
+                                   string typeName,
+                                   string measureTypeName,
+                                   StringBuilder b )
         {
             _meter = meter;
             _instrument = instrument;
             _instrumentId = id;
-            _jsonDesc = jsonDesc;
+            _sInstrumentId = id.ToString( CultureInfo.InvariantCulture );
+            _jsonDesc = Write( b, meter, instrument, _sInstrumentId, typeName, measureTypeName );
             _fullName = meter.Meter.Name + '/' + instrument.Name;
             _next = meter._first;
             meter._first = this;
-        }
 
-        public static InstrumentState Create( MeterState meter, Instrument instrument, StringBuilder b )
-        {
-            Throw.DebugAssert( b.Length == 0 );
-            StringBuilder? error = null;
-            Validate( ref error, b, instrument, out var typeName, out var measureTypeName );
-            if( b.Length > 0 )
+            static string Write( StringBuilder b, MeterState meter, Instrument instrument, string id, string typeName, string measureTypeName )
             {
-                ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, _tag, b.ToString(), null, _filePath, 1 );
-                b.Clear();
-            }
-            if( error != null )
-            {
-                throw new CKException( error.ToString() );
-            }
-            Write( b, instrument, typeName, measureTypeName );
-            return new InstrumentState( meter, instrument, ++_currentInstrumentId, b.ToString() );
-
-            static void Validate( ref StringBuilder? error,
-                                  StringBuilder warning,
-                                  Instrument instrument,
-                                  out string typeName,
-                                  out string measureTypeName )
-            {
-                if( instrument.Name.Length > 255 || !InstrumentNameRegex().IsMatch( instrument.Name ) )
-                {
-                    AddErrorOrWarning( ref error,
-                              $"Instrument '{instrument.Name}'",
-                              $"Name must follow https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax." );
-                }
-                if( instrument.Tags != null )
-                {
-                    ValidateTags( ref error, warning, instrument.Tags, () => $"Instrument '{instrument.Name}'" );
-                }
-                var t = instrument.GetType();
-                bool valid = t.IsGenericType && !t.IsGenericTypeDefinition && t.Namespace == "System.Diagnostics.Metrics";
-                if( !valid )
-                {
-                    AddErrorOrWarning( ref error,
-                              $"Instrument '{instrument.Name}'",
-                              $"Invalid instrument type '{t}'." );
-                    typeName = measureTypeName = "";
-                }
-                else
-                {
-                    typeName = t.Name.Substring( 0, t.Name.IndexOf( '`' ) );
-                    Throw.CheckState( instrument.IsObservable == typeName.StartsWith( "Observable" ) );
-                    if( instrument.IsObservable ) typeName = typeName.Substring( 10 );
-                    measureTypeName = TypeExtensions.TypeAliases[t.GenericTypeArguments[0]];
-                }
-                // https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-unit
-                if( instrument.Unit != null && instrument.Unit.Length > 63 )
-                {
-                    AddErrorOrWarning( ref error, $"Instrument '{instrument.Name}'", $"Units '{instrument.Unit}' cannot be longer than 63 characters." );
-                }
-            }
-
-            static void Write( StringBuilder b, Instrument instrument, string typeName, string measureTypeName )
-            {
+                Throw.DebugAssert( b.Length == 0 );
                 StringWriter? w = null;
                 // Name and types are purely ascii.
-                b.Append( '"' ).Append( instrument.Name )
+                b.Append( id ).Append( ",\"").Append( meter.MeterId )
+                 .Append( ",\"" ).Append( instrument.Name )
                  .Append( "\",\"" ).Append( typeName ).Append( '/' ).Append( measureTypeName )
                  .Append( "\"," ).Append( instrument.IsObservable ).Append( ",\"" );
                 if( instrument.Description != null )
@@ -188,13 +141,99 @@ public static partial class DotNetMetrics
         }
 #endif
                 b.Append( ']' );
+                return b.ToString();
             }
 
         }
 
+        public static InstrumentState Create( MeterState meter, Instrument instrument, StringBuilder b )
+        {
+            Throw.DebugAssert( b.Length == 0 );
+            StringBuilder? error = null;
+            Validate( ref error, b, instrument, out var typeName, out var measureType );
+            if( b.Length > 0 )
+            {
+                ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, _tag, b.ToString(), null, _filePath, 1 );
+                b.Clear();
+            }
+            if( error != null )
+            {
+                throw new CKException( error.ToString() );
+            }
+            if( measureType == typeof( int ) )
+            {
+                return new InstrumentState<int>( meter, instrument, ++_currentInstrumentId, typeName, "int", b );
+            }
+            if( measureType == typeof( double ) )
+            {
+                return new InstrumentState<double>( meter, instrument, ++_currentInstrumentId, typeName, "double", b );
+            }
+            if( measureType == typeof( long ) )
+            {
+                return new InstrumentState<long>( meter, instrument, ++_currentInstrumentId, typeName, "long", b );
+            }
+            if( measureType == typeof( float ) )
+            {
+                return new InstrumentState<float>( meter, instrument, ++_currentInstrumentId, typeName, "float", b );
+            }
+            if( measureType == typeof( byte ) )
+            {
+                return new InstrumentState<byte>( meter, instrument, ++_currentInstrumentId, typeName, "byte", b );
+            }
+            if( measureType == typeof( short ) )
+            {
+                return new InstrumentState<short>( meter, instrument, ++_currentInstrumentId, typeName, "short", b );
+            }
+            Throw.DebugAssert( measureType == typeof( decimal ) );
+            return new InstrumentState<decimal>( meter, instrument, ++_currentInstrumentId, typeName, "decimal", b );
+
+            static void Validate( ref StringBuilder? error,
+                                  StringBuilder warning,
+                                  Instrument instrument,
+                                  out string typeName,
+                                  out Type measureType )
+            {
+                if( instrument.Name.Length > 255 || !InstrumentNameRegex().IsMatch( instrument.Name ) )
+                {
+                    AddErrorOrWarning( ref error,
+                              $"Instrument '{instrument.Name}'",
+                              $"Name must follow https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax." );
+                }
+                if( instrument.Tags != null )
+                {
+                    ValidateTags( ref error, warning, instrument.Tags, () => $"Instrument '{instrument.Name}'" );
+                }
+                var t = instrument.GetType();
+                bool valid = t.IsGenericType && !t.IsGenericTypeDefinition && t.Namespace == "System.Diagnostics.Metrics";
+                if( !valid )
+                {
+                    AddErrorOrWarning( ref error,
+                              $"Instrument '{instrument.Name}'",
+                              $"Invalid instrument type '{t}'." );
+                    typeName = "";
+                    measureType = typeof( void );
+                }
+                else
+                {
+                    typeName = t.Name.Substring( 0, t.Name.IndexOf( '`' ) );
+                    Throw.CheckState( instrument.IsObservable == typeName.StartsWith( "Observable" ) );
+                    if( instrument.IsObservable ) typeName = typeName.Substring( 10 );
+                    measureType = t.GenericTypeArguments[0];
+                }
+                // https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-unit
+                if( instrument.Unit != null && instrument.Unit.Length > 63 )
+                {
+                    AddErrorOrWarning( ref error, $"Instrument '{instrument.Name}'", $"Units '{instrument.Unit}' cannot be longer than 63 characters." );
+                }
+            }
+
+        }
+
+        public override string ToString() => _jsonDesc;
+
         // https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax
         [GeneratedRegex( "^[a-z][-_\\./a-z0-9]*$", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant )]
-        internal static partial Regex InstrumentNameRegex();
+        private static partial Regex InstrumentNameRegex();
 
     }
 }

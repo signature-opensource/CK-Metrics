@@ -1,9 +1,8 @@
-using System;
-using System.Collections.Generic;
+using CK.Core;
 using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 
-namespace CK.Core;
+namespace CK.Metrics;
 
 public sealed class InstrumentMatcher
 {

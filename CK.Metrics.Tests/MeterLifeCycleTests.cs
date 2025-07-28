@@ -4,11 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
-namespace CK.Core.Tests.Metrics;
+namespace CK.Metrics.Tests.Metrics;
 
 [TestFixture]
 public class MeterLifeCycleTests
