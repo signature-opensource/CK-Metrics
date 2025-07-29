@@ -1,6 +1,8 @@
 using CK.Core;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.Metrics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -29,7 +31,13 @@ public static partial class DotNetMetrics
     /// We currenlty decide to be strict here and to apply limits but this can be changed if needed.
     /// </para>
     /// </summary>
-    static int MetricsAttributeCountLimit { get; set; }
+    public static int MetricsAttributeCountLimit { get; set; }
+
+    /// <summary>
+    /// The maximal <see cref="InstrumentConfiguration.CoolerTimeSpan"/> is one hour.
+    /// </summary>
+    public const int MaxCoolerTimeSpan = 3_600_000;
+
 
     static DotNetMetrics()
     {
@@ -50,35 +58,32 @@ public static partial class DotNetMetrics
         _listener.Start();
     }
 
-    /// <summary>
-    /// Enables the instrument to send its measures.
-    /// This is independent of any configuration.
-    /// Measurements can be stopped by calling <see cref="DisableByCode(Instrument)"/>.
-    /// </summary>
-    /// <param name="instrument">The instrument.</param>
-    /// <returns>True on success, false if the <see cref="Instrument.Meter"/> has been disposed.</returns>
-    public static bool EnableByCode( Instrument instrument )
+    public static void Configure( UserMessageCollector messages, MetricsConfiguration configuration )
     {
-        if( _instruments.TryGetValue( instrument, out var iState ) )
+        // Take a snapshot of the MeterState and work on it. The InstrumentState list of each MeterState
+        // is thread safe by design (append only single linked list). Instruments concurently published
+        // after their first IntrumentState is considered are simply ignored.
+        MeterState[] meters;
+        lock( _meters )
         {
-            iState.CodeEnable( _listener );
-            return true;
+            meters = _meters.Values.ToArray();
         }
-        return false;
-    }
+        // Also snapshots the instruments so we don't have to bother with concurently published instruments.
+        var targets = meters.SelectMany( m => m.InstrumentStates ).ToList();
+        // Clones the configuration: the external configuration must be disconnected from the
+        // internal ones.
+        var config = configuration.Clone();
 
-    /// <summary>
-    /// Cancels a previous call to <see cref="EnableByCode(Instrument)"/>.
-    /// </summary>
-    /// <param name="instrument">The instrument.</param>
-    /// <returns>True on success, false if the <see cref="Instrument.Meter"/> has been disposed.</returns>
-    public static bool DisableByCode( Instrument instrument )
-    {
-        if( _instruments.TryGetValue( instrument, out var iState ) )
+        foreach( var instrument in targets )
         {
-            return iState.CodeDisable( _listener );
+            foreach( var (m,c) in config.Configurations )
+            {
+                if( m.Match( instrument ) )
+                {
+                    instrument.ApplyConfiguration( messages, c );
+                }
+            }
         }
-        return false;
     }
 
     static void OnInstrumentPublished( Instrument instrument, MeterListener listener )

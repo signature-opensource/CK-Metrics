@@ -2,12 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="24.0.1--0003-develop" />
+    <PackageReference Include="CK.Globalization" Version="3.0.1--0004-develop" />
   </ItemGroup>
 
 </Project>

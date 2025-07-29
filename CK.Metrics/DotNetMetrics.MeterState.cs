@@ -1,5 +1,7 @@
 using CK.Core;
+using System.Collections.Generic;
 using System.Diagnostics.Metrics;
+using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
@@ -50,6 +52,19 @@ public static partial class DotNetMetrics
         public int MeterId => _meterId;
 
         public string JsonDescription => _jsonDesc;
+
+        public IEnumerable<InstrumentState> InstrumentStates
+        {
+            get
+            {
+                var f = _first;
+                while( f != null )
+                {
+                    yield return f;
+                    f = f._next;
+                }
+            }
+        }
 
         internal static MeterState Create( Meter meter, StringBuilder b )
         {

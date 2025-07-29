@@ -2,6 +2,7 @@ using CK.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,6 +26,8 @@ public static partial class DotNetMetrics
             Throw.DebugAssert( TypeExtensions.TypeAliases[typeof( T )] == measureTypeName );
             _localAggregator = ILocalAggregator<T>.Null;
         }
+
+        public override ILocalAggregator LocalAggregator => _localAggregator;
 
         internal void HandleMeasure( T measurement, ReadOnlySpan<KeyValuePair<string, object?>> tags )
         {

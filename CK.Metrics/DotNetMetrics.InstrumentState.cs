@@ -1,6 +1,8 @@
 using CK.Core;
+using System;
 using System.Diagnostics.Metrics;
 using System.Globalization;
+using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
@@ -11,17 +13,16 @@ public static partial class DotNetMetrics
 {
     static int _currentInstrumentId;
 
-    internal partial class InstrumentState
+    internal abstract partial class InstrumentState
     {
         readonly Instrument _instrument;
         readonly string _fullName;
         readonly string _jsonDesc;
         readonly MeterState _meter;
-        InstrumentState? _next;
+        internal InstrumentState? _next;
+        InstrumentConfiguration? _configuration;
         readonly int _instrumentId;
         protected string _sInstrumentId;
-        bool _codeEnabled;
-        bool _configEnabled;
         bool _expectOnMeasurementsCompleted;
 
         public MeterState Meter => _meter;
@@ -30,56 +31,62 @@ public static partial class DotNetMetrics
 
         public string JsonDescription => _jsonDesc;
 
-        public bool IsEnabled => _codeEnabled || _configEnabled;
+        public bool IsEnabled => _configuration?.Enabled ?? false;
 
         public string FullName => _fullName;
 
         public Instrument Instrument => _instrument;
 
-        internal void CodeEnable( MeterListener listener )
+        public abstract ILocalAggregator LocalAggregator { get; }
+
+        internal void SetConfiguration( MeterListener listener,
+                                        UserMessageCollector messages,
+                                        InstrumentConfiguration configuration )
         {
-            if( !_codeEnabled )
+            bool? mustEnable = null;
+            lock( _jsonDesc )
             {
-                bool mustEnable;
-                lock( _jsonDesc )
+                bool newEnable = configuration.Enabled;
+                bool oldEnabled = IsEnabled;
+                if( oldEnabled != newEnable )
                 {
-                    mustEnable = !IsEnabled;
-                    _codeEnabled = true;
+                    if( newEnable )
+                    {
+                        mustEnable = true;
+                    }
+                    else
+                    {
+                        mustEnable = false;
+                        _expectOnMeasurementsCompleted = true;
+                    }
                 }
-                if( mustEnable )
+                _configuration = configuration;
+                if( oldEnabled )
+                {
+                    OnHotSetConfiguration( messages );
+                }
+            }
+            if( mustEnable.HasValue )
+            {
+                if( mustEnable.Value )
                 {
                     listener.EnableMeasurementEvents( _instrument, this );
+                }
+                else
+                {
+                    listener.DisableMeasurementEvents( _instrument );
                 }
             }
         }
 
-        internal bool CodeDisable( MeterListener listener )
+        private void OnHotSetConfiguration( UserMessageCollector messages )
         {
-            if( _codeEnabled )
-            {
-                bool mustDisable;
-                lock( _jsonDesc )
-                {
-                    _codeEnabled = false;
-                    mustDisable = !IsEnabled;
-                    if( mustDisable )
-                    {
-                        _expectOnMeasurementsCompleted = true;
-                    }
-                }
-                if( mustDisable )
-                {
-                    object? previousState = listener.DisableMeasurementEvents( _instrument );
-                    Throw.DebugAssert( previousState == null || previousState == this );
-                    // Meter has been disposed.
-                    return previousState != null;
-                }
-            }
-            return true;
+            throw new NotImplementedException();
         }
 
         internal bool OnMeasurementsCompleted()
         {
+            LocalAggregator.Flush();
             lock( _jsonDesc )
             {
                 if( _expectOnMeasurementsCompleted )
