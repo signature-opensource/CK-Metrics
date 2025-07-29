@@ -20,9 +20,9 @@ public static partial class DotNetMetrics
         readonly string _jsonDesc;
         readonly MeterState _meter;
         internal InstrumentState? _next;
-        InstrumentConfiguration? _configuration;
         readonly int _instrumentId;
         protected string _sInstrumentId;
+        bool _enabled;
         bool _expectOnMeasurementsCompleted;
 
         public MeterState Meter => _meter;
@@ -31,13 +31,14 @@ public static partial class DotNetMetrics
 
         public string JsonDescription => _jsonDesc;
 
-        public bool IsEnabled => _configuration?.Enabled ?? false;
+        public bool IsEnabled => _enabled;
 
+        /// <summary>
+        /// Gets the "<see cref="Meter.Name"/>/<see cref="Instrument.Name"/>".
+        /// </summary>
         public string FullName => _fullName;
 
         public Instrument Instrument => _instrument;
-
-        public abstract ILocalAggregator LocalAggregator { get; }
 
         internal void SetConfiguration( MeterListener listener,
                                         UserMessageCollector messages,
@@ -47,8 +48,7 @@ public static partial class DotNetMetrics
             lock( _jsonDesc )
             {
                 bool newEnable = configuration.Enabled;
-                bool oldEnabled = IsEnabled;
-                if( oldEnabled != newEnable )
+                if( _enabled != newEnable )
                 {
                     if( newEnable )
                     {
@@ -59,11 +59,7 @@ public static partial class DotNetMetrics
                         mustEnable = false;
                         _expectOnMeasurementsCompleted = true;
                     }
-                }
-                _configuration = configuration;
-                if( oldEnabled )
-                {
-                    OnHotSetConfiguration( messages );
+                    _enabled = newEnable;
                 }
             }
             if( mustEnable.HasValue )
@@ -79,14 +75,8 @@ public static partial class DotNetMetrics
             }
         }
 
-        private void OnHotSetConfiguration( UserMessageCollector messages )
-        {
-            throw new NotImplementedException();
-        }
-
         internal bool OnMeasurementsCompleted()
         {
-            LocalAggregator.Flush();
             lock( _jsonDesc )
             {
                 if( _expectOnMeasurementsCompleted )

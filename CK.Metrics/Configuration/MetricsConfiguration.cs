@@ -36,14 +36,4 @@ public class MetricsConfiguration
     /// </summary>
     public IList<(InstrumentMatcher,InstrumentConfiguration)> Configurations => _configurations;
 
-    public MetricsConfiguration Clone()
-    {
-        var clone = new MetricsConfiguration();
-        clone._autoObservableTimer = _autoObservableTimer;
-        foreach( var (m,c) in _configurations )
-        {
-            clone._configurations.Add( (m, c.Clone()) );
-        }
-        return clone;
-    }
 }

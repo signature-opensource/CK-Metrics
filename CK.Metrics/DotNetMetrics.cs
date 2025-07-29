@@ -1,10 +1,12 @@
 using CK.Core;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 
 namespace CK.Metrics;
 
@@ -16,7 +18,7 @@ public static partial class DotNetMetrics
     static Dictionary<Meter,MeterState> _meters;
     static ConcurrentDictionary<Instrument, InstrumentState> _instruments;
     static string _filePath;
-    static bool _defaultCodeEnabled;
+    static Timer _observableTimer;
 
     /// <summary>
     /// Gets the "Metrics" tag.
@@ -45,6 +47,7 @@ public static partial class DotNetMetrics
         _filePath = ThisFile() ?? "DotNetMetrics.cs";
         _meters = new Dictionary<Meter, MeterState>();
         _instruments = new ConcurrentDictionary<Instrument, InstrumentState>();
+        _observableTimer = new Timer( OnObservableTimer, null, Timeout.Infinite, Timeout.Infinite );
         _listener = new MeterListener();
         _listener.SetMeasurementEventCallback<byte>( static ( i, m, t, s ) => ((InstrumentState<byte>)s!).HandleMeasure( m, t ) );
         _listener.SetMeasurementEventCallback<short>( static ( i, m, t, s ) => ((InstrumentState<short>)s!).HandleMeasure( m, t ) );
@@ -58,6 +61,8 @@ public static partial class DotNetMetrics
         _listener.Start();
     }
 
+    static void OnObservableTimer( object? state ) => _listener.RecordObservableInstruments();
+
     public static void Configure( UserMessageCollector messages, MetricsConfiguration configuration )
     {
         // Take a snapshot of the MeterState and work on it. The InstrumentState list of each MeterState
@@ -70,20 +75,20 @@ public static partial class DotNetMetrics
         }
         // Also snapshots the instruments so we don't have to bother with concurently published instruments.
         var targets = meters.SelectMany( m => m.InstrumentStates ).ToList();
-        // Clones the configuration: the external configuration must be disconnected from the
-        // internal ones.
-        var config = configuration.Clone();
 
         foreach( var instrument in targets )
         {
-            foreach( var (m,c) in config.Configurations )
+            foreach( var (m,c) in configuration.Configurations )
             {
                 if( m.Match( instrument ) )
                 {
-                    instrument.ApplyConfiguration( messages, c );
+                    instrument.SetConfiguration( _listener, messages, c );
                 }
             }
         }
+        int t = configuration.AutoObservableTimer;
+        if( t == 0 ) _observableTimer.Change( Timeout.Infinite, Timeout.Infinite );
+        else _observableTimer.Change( 0, t );
     }
 
     static void OnInstrumentPublished( Instrument instrument, MeterListener listener )
@@ -94,12 +99,10 @@ public static partial class DotNetMetrics
         StringBuilder b = new StringBuilder();
         var meter = instrument.Meter;
 
-        bool defaultCodeEnabled;
         MeterState? mState = null;
         bool newMeter = false;
         lock( _meters )
         {
-            defaultCodeEnabled = _defaultCodeEnabled;
             if( !_meters.TryGetValue( meter, out mState ) )
             {
                 newMeter = true;
