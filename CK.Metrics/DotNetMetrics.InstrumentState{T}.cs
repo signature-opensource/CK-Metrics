@@ -3,9 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace CK.Metrics;
 
@@ -18,8 +16,9 @@ public static partial class DotNetMetrics
                                   int id,
                                   string typeName,
                                   string measureTypeName,
+                                  System.Collections.Immutable.ImmutableArray<KeyValuePair<string, object?>> tags,
                                   StringBuilder b )
-            : base( meter, instrument, id, typeName, measureTypeName, b )
+            : base( meter, instrument, id, typeName, measureTypeName, tags, b )
         {
             Throw.DebugAssert( TypeExtensions.TypeAliases[typeof( T )] == measureTypeName );
         }
@@ -30,9 +29,9 @@ public static partial class DotNetMetrics
             if( !tags.IsEmpty )
             {
                 var b = new StringBuilder( text );
-                var w = new StringWriter( b );
+                StringWriter? w = null;
                 b.Append( ":[" );
-                WriteTags( b, w, tags );
+                WriteTags( b, ref w, tags );
                 text = b.Append( ']' ).ToString();
             }
             SendMetricLog( text );

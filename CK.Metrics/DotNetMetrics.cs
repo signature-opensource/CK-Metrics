@@ -1,7 +1,7 @@
 using CK.Core;
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -19,6 +19,8 @@ public static partial class DotNetMetrics
     static ConcurrentDictionary<Instrument, InstrumentState> _instruments;
     static string _filePath;
     static Timer _observableTimer;
+    static int _currentTimerDueTime;
+    static ImmutableArray<(InstrumentMatcher, InstrumentConfiguration)> _currentConfigurations;
 
     /// <summary>
     /// Gets the "Metrics" tag.
@@ -48,6 +50,7 @@ public static partial class DotNetMetrics
         _meters = new Dictionary<Meter, MeterState>();
         _instruments = new ConcurrentDictionary<Instrument, InstrumentState>();
         _observableTimer = new Timer( OnObservableTimer, null, Timeout.Infinite, Timeout.Infinite );
+        _currentConfigurations = [];
         _listener = new MeterListener();
         _listener.SetMeasurementEventCallback<byte>( static ( i, m, t, s ) => ((InstrumentState<byte>)s!).HandleMeasure( m, t ) );
         _listener.SetMeasurementEventCallback<short>( static ( i, m, t, s ) => ((InstrumentState<short>)s!).HandleMeasure( m, t ) );
@@ -63,33 +66,31 @@ public static partial class DotNetMetrics
 
     static void OnObservableTimer( object? state ) => _listener.RecordObservableInstruments();
 
-    public static void Configure( UserMessageCollector messages, MetricsConfiguration configuration )
+    /// <summary>
+    /// Gets the currently available instruments and their configuration.
+    /// </summary>
+    /// <returns>A <see cref="DotNetMetricsInfo"/>.</returns>
+    public static DotNetMetricsInfo GetAvailableMetrics()
     {
-        // Take a snapshot of the MeterState and work on it. The InstrumentState list of each MeterState
-        // is thread safe by design (append only single linked list). Instruments concurently published
-        // after their first IntrumentState is considered are simply ignored.
+        var result = new List<FullInstrumentInfo>();
         MeterState[] meters;
+        // Take a snapshot of the MeterState (see ApplyConfiguration).
         lock( _meters )
         {
             meters = _meters.Values.ToArray();
         }
-        // Also snapshots the instruments so we don't have to bother with concurently published instruments.
-        var targets = meters.SelectMany( m => m.InstrumentStates ).ToList();
-
-        foreach( var instrument in targets )
-        {
-            foreach( var (m,c) in configuration.Configurations )
-            {
-                if( m.Match( instrument ) )
-                {
-                    instrument.SetConfiguration( _listener, messages, c );
-                }
-            }
-        }
-        int t = configuration.AutoObservableTimer;
-        if( t == 0 ) _observableTimer.Change( Timeout.Infinite, Timeout.Infinite );
-        else _observableTimer.Change( 0, t );
+        // New instruments may be published concurrently here and this is fine.
+        // The 
+        return new DotNetMetricsInfo( _currentTimerDueTime,
+                                      meters.SelectMany( m => m.InstrumentStates.Select( i => i.Info ) ).ToList() );
     }
+
+    /// <summary>
+    /// Applies a <see cref="MetricsConfiguration"/>.
+    /// </summary>
+    /// <param name="monitor">The monitor to use.</param>
+    /// <param name="configuration">The configuration to apply.</param>
+    public static void ApplyConfiguration( IActivityMonitor monitor, MetricsConfiguration configuration ) => MicroAgent.Push( configuration );
 
     static void OnInstrumentPublished( Instrument instrument, MeterListener listener )
     {
@@ -112,14 +113,16 @@ public static partial class DotNetMetrics
         }
         if( newMeter )
         {
-            b.Clear().Append( "+Meter[" ).Append( mState.JsonDescription ).Append( ']' );
+            b.Clear().Append( "+Meter[" ).Append( mState.Info.JsonDescription ).Append( ']' );
             SendMetricLog( b.ToString() );
             b.Clear();
         }
         var iState = InstrumentState.Create( mState, instrument, b );
         Throw.CheckState( _instruments.TryAdd( instrument, iState ) );
-        b.Clear().Append( "+Instrument[" ).Append( iState.JsonDescription ).Append( ']' ); 
-        SendMetricLog( b.ToString() ); ;
+        b.Clear().Append( "+Instrument[" ).Append( iState.Info.Info.JsonDescription ).Append( ']' ); 
+        SendMetricLog( b.ToString() );
+        // OnInstrumentPublished.
+        MicroAgent.Push( iState );
     }
 
     static void OnMeasurementsCompleted( Instrument instrument, object? state )
@@ -138,7 +141,7 @@ public static partial class DotNetMetrics
             }
             if( meter != null )
             {
-                var b = new StringBuilder( "-Meter[" ).Append( meter.JsonDescription ).Append( ']' );
+                var b = new StringBuilder( "-Meter[" ).Append( meter.Info.JsonDescription ).Append( ']' );
                 SendMetricLog( b.ToString() );
             }
         }
@@ -156,4 +159,50 @@ public static partial class DotNetMetrics
         ActivityMonitor.StaticLogger.UnfilteredLog( ref data );
     }
 
+    // Called from the MicroAgent.
+    static bool ApplyConfigurations( IActivityMonitor monitor, InstrumentState instrument )
+    {
+        foreach( var (m, c) in _currentConfigurations )
+        {
+            if( m.Match( instrument.Info ) )
+            {
+                return instrument.SetConfiguration( monitor, _listener, c );
+            }
+        }
+        return false;
+    }
+
+    // Called from the MicroAgent.
+    static void Apply( ActivityMonitor monitor, MetricsConfiguration configuration )
+    {
+        using var _ = monitor.OpenTrace( "Applying metrics configuration." );
+        // Take a snapshot of the MeterState and work on it. The InstrumentState list of each MeterState
+        // is thread safe by design (append only single linked list). Instruments concurently published
+        // after their first IntrumentState is considered are simply ignored.
+        MeterState[] meters;
+        lock( _meters )
+        {
+            meters = _meters.Values.ToArray();
+        }
+        // Also snapshots the instruments so we don't have to bother with concurently published instruments.
+        var targets = meters.SelectMany( m => m.InstrumentStates ).ToList();
+
+        _currentConfigurations = configuration.Configurations.ToImmutableArray();
+
+        foreach( var instrument in targets )
+        {
+            ApplyConfigurations( monitor, instrument );
+        }
+        if( configuration.AutoObservableTimer.HasValue )
+        {
+            int t = configuration.AutoObservableTimer.Value;
+            if( _currentTimerDueTime != t )
+            {
+                if( t == 0 ) _observableTimer.Change( Timeout.Infinite, Timeout.Infinite );
+                else _observableTimer.Change( 0, t );
+                _currentTimerDueTime = t;
+            }
+        }
+    }
 }
+

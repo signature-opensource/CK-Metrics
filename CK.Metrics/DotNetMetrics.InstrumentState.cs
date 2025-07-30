@@ -1,5 +1,8 @@
 using CK.Core;
+using Microsoft.Extensions.Configuration;
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.IO;
@@ -16,36 +19,29 @@ public static partial class DotNetMetrics
     internal abstract partial class InstrumentState
     {
         readonly Instrument _instrument;
-        readonly string _fullName;
-        readonly string _jsonDesc;
         readonly MeterState _meter;
+        readonly FullInstrumentInfo _info;
+        readonly object _lock;
         internal InstrumentState? _next;
-        readonly int _instrumentId;
         protected string _sInstrumentId;
         bool _enabled;
         bool _expectOnMeasurementsCompleted;
 
         public MeterState Meter => _meter;
 
-        public int InstrumentId => _instrumentId;
+        public Instrument Instrument => _instrument;
 
-        public string JsonDescription => _jsonDesc;
+        public FullInstrumentInfo Info => _info;
 
         public bool IsEnabled => _enabled;
 
-        /// <summary>
-        /// Gets the "<see cref="Meter.Name"/>/<see cref="Instrument.Name"/>".
-        /// </summary>
-        public string FullName => _fullName;
-
-        public Instrument Instrument => _instrument;
-
-        internal void SetConfiguration( MeterListener listener,
-                                        UserMessageCollector messages,
+        internal bool SetConfiguration( IActivityMonitor monitor,
+                                        MeterListener listener,
                                         InstrumentConfiguration configuration )
         {
+            if( configuration.Equals( configuration ) ) return false;
             bool? mustEnable = null;
-            lock( _jsonDesc )
+            lock( _lock )
             {
                 bool newEnable = configuration.Enabled;
                 if( _enabled != newEnable )
@@ -61,6 +57,7 @@ public static partial class DotNetMetrics
                     }
                     _enabled = newEnable;
                 }
+                _info.Configuration = configuration;
             }
             if( mustEnable.HasValue )
             {
@@ -73,11 +70,12 @@ public static partial class DotNetMetrics
                     listener.DisableMeasurementEvents( _instrument );
                 }
             }
+            return true;
         }
 
         internal bool OnMeasurementsCompleted()
         {
-            lock( _jsonDesc )
+            lock( _lock )
             {
                 if( _expectOnMeasurementsCompleted )
                 {
@@ -93,53 +91,26 @@ public static partial class DotNetMetrics
                                    int id,
                                    string typeName,
                                    string measureTypeName,
+                                   ImmutableArray<KeyValuePair<string, object?>> tags,
                                    StringBuilder b )
         {
+            _lock = new object();
             _meter = meter;
             _instrument = instrument;
-            _instrumentId = id;
             _sInstrumentId = id.ToString( CultureInfo.InvariantCulture );
-            _jsonDesc = Write( b, meter, instrument, _sInstrumentId, typeName, measureTypeName );
-            _fullName = meter.Meter.Name + '/' + instrument.Name;
+            _info = new FullInstrumentInfo( meter.Info,
+                                            new InstrumentInfo( id,
+                                                                meter.Info.MeterId,
+                                                                instrument.Name,
+                                                                instrument.Description,
+                                                                instrument.Unit,
+                                                                typeName,
+                                                                measureTypeName,
+                                                                tags,
+                                                                instrument.IsObservable ),
+                                            InstrumentConfiguration.Default );
             _next = meter._first;
             meter._first = this;
-
-            static string Write( StringBuilder b, MeterState meter, Instrument instrument, string id, string typeName, string measureTypeName )
-            {
-                Throw.DebugAssert( b.Length == 0 );
-                StringWriter? w = null;
-                // Name and types are purely ascii.
-                b.Append( id ).Append( ",\"").Append( meter.MeterId )
-                 .Append( ",\"" ).Append( instrument.Name )
-                 .Append( "\",\"" ).Append( typeName ).Append( '/' ).Append( measureTypeName )
-                 .Append( "\"," ).Append( instrument.IsObservable ).Append( ",\"" );
-                if( instrument.Description != null )
-                {
-                    w = new StringWriter( b );
-                    JavaScriptEncoder.Default.Encode( w, instrument.Description );
-                }
-                b.Append( "\",[" );
-                if( instrument.Tags != null )
-                {
-                    w ??= new StringWriter( b );
-                    WriteTags( b, w, instrument.Tags );
-                }
-                b.Append( "],[" );
-#if NET10_0_OR_GREATER
-        if( instrument.Advice?.HistogramBucketBoundaries != null )
-        {
-            bool atLeastOne = false;
-            foreach( var b in instrument.Advice.HistogramBucketBoundaries )
-            {
-                if( atLeastOne ) b.Append( ',' );
-                atLeastOne = true;
-                b.Append( b );
-            }
-        }
-#endif
-                b.Append( ']' );
-                return b.ToString();
-            }
 
         }
 
@@ -147,7 +118,7 @@ public static partial class DotNetMetrics
         {
             Throw.DebugAssert( b.Length == 0 );
             StringBuilder? error = null;
-            Validate( ref error, b, instrument, out var typeName, out var measureType );
+            Validate( ref error, b, instrument, out var typeName, out var measureType, out var tags );
             if( b.Length > 0 )
             {
                 ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, _tag, b.ToString(), null, _filePath, 1 );
@@ -159,36 +130,37 @@ public static partial class DotNetMetrics
             }
             if( measureType == typeof( int ) )
             {
-                return new InstrumentState<int>( meter, instrument, ++_currentInstrumentId, typeName, "int", b );
+                return new InstrumentState<int>( meter, instrument, ++_currentInstrumentId, typeName, "int", tags, b );
             }
             if( measureType == typeof( double ) )
             {
-                return new InstrumentState<double>( meter, instrument, ++_currentInstrumentId, typeName, "double", b );
+                return new InstrumentState<double>( meter, instrument, ++_currentInstrumentId, typeName, "double", tags, b );
             }
             if( measureType == typeof( long ) )
             {
-                return new InstrumentState<long>( meter, instrument, ++_currentInstrumentId, typeName, "long", b );
+                return new InstrumentState<long>( meter, instrument, ++_currentInstrumentId, typeName, "long", tags, b );
             }
             if( measureType == typeof( float ) )
             {
-                return new InstrumentState<float>( meter, instrument, ++_currentInstrumentId, typeName, "float", b );
+                return new InstrumentState<float>( meter, instrument, ++_currentInstrumentId, typeName, "float", tags, b );
             }
             if( measureType == typeof( byte ) )
             {
-                return new InstrumentState<byte>( meter, instrument, ++_currentInstrumentId, typeName, "byte", b );
+                return new InstrumentState<byte>( meter, instrument, ++_currentInstrumentId, typeName, "byte", tags, b );
             }
             if( measureType == typeof( short ) )
             {
-                return new InstrumentState<short>( meter, instrument, ++_currentInstrumentId, typeName, "short", b );
+                return new InstrumentState<short>( meter, instrument, ++_currentInstrumentId, typeName, "short", tags, b );
             }
             Throw.DebugAssert( measureType == typeof( decimal ) );
-            return new InstrumentState<decimal>( meter, instrument, ++_currentInstrumentId, typeName, "decimal", b );
+            return new InstrumentState<decimal>( meter, instrument, ++_currentInstrumentId, typeName, "decimal", tags, b );
 
             static void Validate( ref StringBuilder? error,
                                   StringBuilder warning,
                                   Instrument instrument,
                                   out string typeName,
-                                  out Type measureType )
+                                  out Type measureType,
+                                  out ImmutableArray<KeyValuePair<string,object?>> tags )
             {
                 if( instrument.Name.Length > 255 || !InstrumentNameRegex().IsMatch( instrument.Name ) )
                 {
@@ -196,10 +168,9 @@ public static partial class DotNetMetrics
                               $"Instrument '{instrument.Name}'",
                               $"Name must follow https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax." );
                 }
-                if( instrument.Tags != null )
-                {
-                    ValidateTags( ref error, warning, instrument.Tags, () => $"Instrument '{instrument.Name}'" );
-                }
+                tags = instrument.Tags != null
+                            ? ValidateTags( ref error, warning, instrument.Tags, () => $"Instrument '{instrument.Name}'" )
+                            : [];
                 var t = instrument.GetType();
                 bool valid = t.IsGenericType && !t.IsGenericTypeDefinition && t.Namespace == "System.Diagnostics.Metrics";
                 if( !valid )
@@ -226,7 +197,7 @@ public static partial class DotNetMetrics
 
         }
 
-        public override string ToString() => _jsonDesc;
+        public override string ToString() => _info.FullName;
 
         // https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax
         [GeneratedRegex( "^[a-z][-_\\./a-z0-9]*$", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant )]

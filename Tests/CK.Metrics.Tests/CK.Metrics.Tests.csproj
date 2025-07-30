@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\CK.Metrics\CK.Metrics.csproj" />
+        <ProjectReference Include="..\..\CK.Metrics\CK.Metrics.csproj" />
     </ItemGroup>
 
 </Project>

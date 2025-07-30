@@ -9,24 +9,25 @@ namespace CK.Metrics;
 
 public static partial class DotNetMetrics
 {
-    static void WriteTags( StringBuilder b, StringWriter w, IEnumerable<KeyValuePair<string, object?>> tags )
+    static void WriteTags( StringBuilder b, ref StringWriter? w, IEnumerable<KeyValuePair<string, object?>> tags )
     {
         foreach( var tag in tags )
         {
-            WriteTag( b, w, tag );
+            WriteTag( b, ref w, tag );
         }
     }
 
-    static void WriteTags( StringBuilder b, StringWriter w, ReadOnlySpan<KeyValuePair<string, object?>> tags )
+    internal static void WriteTags( StringBuilder b, ref StringWriter? w, ReadOnlySpan<KeyValuePair<string, object?>> tags )
     {
         foreach( var tag in tags )
         {
-            WriteTag( b, w, tag );
+            WriteTag( b, ref w, tag );
         }
     }
 
-    static void WriteTag( StringBuilder b, StringWriter w, KeyValuePair<string, object?> tag )
+    static void WriteTag( StringBuilder b, ref StringWriter? w, KeyValuePair<string, object?> tag )
     {
+        w ??= new StringWriter( b );
         b.Append( '"' );
         JavaScriptEncoder.Default.Encode( w, tag.Key );
         b.Append( '"' );

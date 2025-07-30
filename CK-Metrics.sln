@@ -1,13 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36221.1 d17.14
+VisualStudioVersion = 17.14.36221.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Metrics", "CK.Metrics\CK.Metrics.csproj", "{CFFF50E2-E73A-492A-ABEF-60B5AD06A187}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Metrics.Tests", "CK.Metrics.Tests\CK.Metrics.Tests.csproj", "{2B99F1E3-1B19-46AA-8D35-E98AFBCECAF6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Metrics.Tests", "Tests\CK.Metrics.Tests\CK.Metrics.Tests.csproj", "{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,16 +19,16 @@ Global
 		{CFFF50E2-E73A-492A-ABEF-60B5AD06A187}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CFFF50E2-E73A-492A-ABEF-60B5AD06A187}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CFFF50E2-E73A-492A-ABEF-60B5AD06A187}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2B99F1E3-1B19-46AA-8D35-E98AFBCECAF6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2B99F1E3-1B19-46AA-8D35-E98AFBCECAF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2B99F1E3-1B19-46AA-8D35-E98AFBCECAF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2B99F1E3-1B19-46AA-8D35-E98AFBCECAF6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{2B99F1E3-1B19-46AA-8D35-E98AFBCECAF6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C6EC3465-5D6B-4745-8A44-EFB449CDAF04}

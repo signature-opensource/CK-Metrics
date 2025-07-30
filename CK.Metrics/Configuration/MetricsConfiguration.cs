@@ -1,16 +1,13 @@
-using System;
+using CK.Core;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CK.Metrics;
 
 public class MetricsConfiguration
 {
     readonly List<(InstrumentMatcher, InstrumentConfiguration)> _configurations;
-    int _autoObservableTimer;
+    int? _autoObservableTimer;
 
     public MetricsConfiguration()
     {
@@ -19,16 +16,21 @@ public class MetricsConfiguration
 
     /// <summary>
     /// Gets or sets the timer delay that collects the <see cref="ObservableInstrument{T}"/>
-    /// measures.
+    /// measures. Defaults to null (leaves the current value unchaged).
     /// <para>
-    /// This is normalized to 0 (the default, auto collection is disabled by default) or to a
-    /// value between 50 ms and 3_600_000 ms (one hour).
+    /// When not null, this is normalized to 0 (the default, auto collection is disabled by default)
+    /// or to a value between 50 ms and 3_600_000 ms (one hour).
     /// </para>
     /// </summary>
-    public int AutoObservableTimer
+    public int? AutoObservableTimer
     {
         get => _autoObservableTimer;
-        set => _autoObservableTimer = value <= 0 ? 0 : int.Clamp( value, 0, 3_600_000 );
+        set
+        {
+            _autoObservableTimer = value.HasValue
+                                        ? value.Value <= 0 ? 0 : int.Clamp( value.Value, 0, 3_600_000 )
+                                        : value;
+        }
     }
 
     /// <summary>
