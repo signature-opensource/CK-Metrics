@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="CK.Globalization" Version="3.0.1--0004-develop" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="CK.Globalization" Version="3.0.1--0004-develop" />
+        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.7" />
+    </ItemGroup>
 
 </Project>

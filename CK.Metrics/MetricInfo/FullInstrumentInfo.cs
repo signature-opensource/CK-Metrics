@@ -1,5 +1,7 @@
 using CK.Core;
+using System;
 using System.Diagnostics.Metrics;
+using System.Threading;
 
 namespace CK.Metrics;
 
@@ -16,10 +18,19 @@ public sealed class FullInstrumentInfo
     public FullInstrumentInfo( MeterInfo meterInfo,
                                InstrumentInfo instrumentInfo,
                                InstrumentConfiguration configuration )
+        : this( meterInfo, instrumentInfo, configuration, null )
+    {
+    }
+
+    FullInstrumentInfo( MeterInfo meterInfo,
+                        InstrumentInfo instrumentInfo,
+                        InstrumentConfiguration configuration,
+                        string? fullName )
     {
         _meterInfo = meterInfo;
         _instrumentInfo = instrumentInfo;
         _configuration = configuration;
+        _fullName = fullName;
     }
 
     /// <summary>
@@ -46,9 +57,15 @@ public sealed class FullInstrumentInfo
         set
         {
             Throw.CheckNotNullArgument( value );
-            _configuration = value;
+            Interlocked.Exchange( ref _configuration, value );
         }
     }
+
+    /// <summary>
+    /// Clones this object to captures the current <see cref="Configuration"/>.
+    /// </summary>
+    /// <returns>A clone of this info.</returns>
+    public FullInstrumentInfo Clone() => new FullInstrumentInfo( _meterInfo, _instrumentInfo, _configuration, _fullName );
 }
 
 

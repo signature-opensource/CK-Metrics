@@ -9,13 +9,11 @@ namespace CK.Metrics;
 
 public static partial class DotNetMetrics
 {
-    static void WriteTags( StringBuilder b, ref StringWriter? w, IEnumerable<KeyValuePair<string, object?>> tags )
-    {
-        foreach( var tag in tags )
-        {
-            WriteTag( b, ref w, tag );
-        }
-    }
+    internal const string _newMeterPrefix = "+Meter:";
+    internal const string _disposedMeterPrefix = "-Meter:";
+    internal const string _newInstrumentPrefix = "+Instrument:";
+    internal const string _instrumentConfigurationPrefix = "+IConfig:";
+    internal const string _measurePrefix = "M:";
 
     internal static void WriteTags( StringBuilder b, ref StringWriter? w, ReadOnlySpan<KeyValuePair<string, object?>> tags )
     {
@@ -50,12 +48,6 @@ public static partial class DotNetMetrics
             case string[] a: AppendStringArray( b, w, a ); break;
             default: throw new CKException( $"Invalid attribute value type '{tag.Value.GetType()}'." );
         }
-    }
-
-    static void AppendNullableArray<T>( StringBuilder b, T[]? a ) where T : struct
-    {
-        if( a != null ) AppendArray( b, a );
-        else b.Append( ",[]" );
     }
 
     static void AppendArray<T>( StringBuilder b, T[] a ) where T : struct

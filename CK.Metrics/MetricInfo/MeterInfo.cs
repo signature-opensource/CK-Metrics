@@ -63,9 +63,15 @@ public sealed class MeterInfo
         return b.ToString();
     }
 
-    internal static bool DoTryParse( string text, int idxStart, [NotNullWhen(true)]out MeterInfo? meterInfo )
+    /// <summary>
+    /// Tries to match and forward the <paramref name="head"/> on success.
+    /// </summary>
+    /// <param name="head">The head to match.</param>
+    /// <param name="meterInfo">The <see cref="MeterInfo"/> on success.</param>
+    /// <returns>True on success (head has been forwarded), false otherwise.</returns>
+    public static bool TryMatch( ref ReadOnlySpan<char> head, [NotNullWhen(true)]out MeterInfo? meterInfo )
     {
-        var head = text.AsSpan( idxStart );
+        var h = head;
         if( head.TryMatchInt32( out var meterId, minValue: 0 )
             && head.TryMatch( ',' )
             && head.TryMatchString( true, out var name ) && !string.IsNullOrWhiteSpace( name )
@@ -76,14 +82,16 @@ public sealed class MeterInfo
             && head.TryMatch( "," )
             && head.TryMatchTags( out var tags ) )
         {
+            int descLen = h.Length - head.Length;
             meterInfo = new MeterInfo( name,
                                        version.Length == 0 ? null : version,
                                        telemetrySchemaUrl.Length == 0 ? null : telemetrySchemaUrl,
                                        tags,
                                        meterId,
-                                       text.Substring( idxStart, text.Length - idxStart - 1 ) );
+                                       new string( h.Slice( 0, descLen ) ) );
             return true;
         }
+        head = h;
         meterInfo = null;
         return false;
     }

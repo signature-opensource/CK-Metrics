@@ -1,14 +1,12 @@
 using CK.Core;
-using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.Metrics;
 using System.Globalization;
-using System.IO;
 using System.Text;
-using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace CK.Metrics;
 
@@ -37,9 +35,16 @@ public static partial class DotNetMetrics
 
         internal bool SetConfiguration( IActivityMonitor monitor,
                                         MeterListener listener,
-                                        InstrumentConfiguration configuration )
+                                        InstrumentConfiguration configuration,
+                                        bool isDefaultConfigure )
         {
-            if( configuration.Equals( configuration ) ) return false;
+            if( _info.Configuration.Equals( configuration ) )
+            {
+                Throw.DebugAssert( "DefaultConfigure cannot be BasicDisabled and this is called only if the current configuration is BasicDisabled",
+                                   !isDefaultConfigure );
+                monitor.Debug( $"Unchanged configuration for {(_enabled ? "en" : "dis")}abled instrument '{_info.FullName}'." );
+                return false;
+            }
             bool? mustEnable = null;
             lock( _lock )
             {
@@ -48,14 +53,37 @@ public static partial class DotNetMetrics
                 {
                     if( newEnable )
                     {
+                        if( isDefaultConfigure )
+                        {
+                            monitor.Trace( $"Instrument '{_info.FullName}' is enabled and configured by DefaultConfigure." );
+                        }
+                        else
+                        {
+                            monitor.Trace( $"Enabling and reconfiguring instrument '{_info.FullName}'." );
+                        }
                         mustEnable = true;
                     }
                     else
                     {
                         mustEnable = false;
                         _expectOnMeasurementsCompleted = true;
+                        Throw.DebugAssert( "This is called only if the current configuration is BasicDisabled",
+                                           !isDefaultConfigure );
+                        monitor.Trace( $"Disabling and reconfiguring instrument '{_info.FullName}'." );
                     }
                     _enabled = newEnable;
+                }
+                else
+                {
+                    if( isDefaultConfigure )
+                    {
+                        Throw.DebugAssert( !_enabled );
+                        monitor.Trace( $"Applied DefaultConfigure to disabled instrument '{_info.FullName}'." );
+                    }
+                    else
+                    {
+                        monitor.Debug( $"Reconfiguring {(_enabled ? "en" : "dis")}abled instrument '{_info.FullName}'." );
+                    }
                 }
                 _info.Configuration = configuration;
             }
@@ -108,10 +136,9 @@ public static partial class DotNetMetrics
                                                                 measureTypeName,
                                                                 tags,
                                                                 instrument.IsObservable ),
-                                            InstrumentConfiguration.Default );
+                                            InstrumentConfiguration.BasicDisabled );
             _next = meter._first;
-            meter._first = this;
-
+            Interlocked.Exchange( ref meter._first, this );
         }
 
         public static InstrumentState Create( MeterState meter, Instrument instrument, StringBuilder b )
@@ -162,7 +189,8 @@ public static partial class DotNetMetrics
                                   out Type measureType,
                                   out ImmutableArray<KeyValuePair<string,object?>> tags )
             {
-                if( instrument.Name.Length > 255 || !InstrumentNameRegex().IsMatch( instrument.Name ) )
+                if( instrument.Name.Length > 255
+                    || !InstrumentNameRegex().IsMatch( instrument.Name ) )
                 {
                     AddErrorOrWarning( ref error,
                               $"Instrument '{instrument.Name}'",
@@ -198,10 +226,6 @@ public static partial class DotNetMetrics
         }
 
         public override string ToString() => _info.FullName;
-
-        // https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax
-        [GeneratedRegex( "^[a-z][-_\\./a-z0-9]*$", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant )]
-        private static partial Regex InstrumentNameRegex();
 
     }
 }

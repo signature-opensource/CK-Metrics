@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace CK.Metrics;
 
@@ -28,14 +29,42 @@ public static partial class DotNetMetrics
     public static CKTrait MetricsTag => _tag;
 
     /// <summary>
+    /// Defaults to 255. 
+    /// </summary>
+    public static int MeterNameLengthLimit { get; set; }
+
+    /// <summary>
     /// Defaults to 128. 
     /// From https://opentelemetry.io/docs/specs/otel/common/#attribute and https://opentelemetry.io/docs/specs/otel/common/#configurable-parameters
     /// ...but https://opentelemetry.io/docs/specs/otel/metrics/sdk/#attribute-limits: Metrics attributes should have no limit.
     /// <para>
-    /// We currenlty decide to be strict here and to apply limits but this can be changed if needed.
+    /// We currenlty decide to be strict here: a <see cref="CKException"/> is thrown if a <see cref="Meter.Tags"/>
+    /// or <see cref="Instrument.Tags"/> has more attributes than this limit. This can be programatically changed if needed.
     /// </para>
     /// </summary>
-    public static int MetricsAttributeCountLimit { get; set; }
+    public static int AttributeCountLimit { get; set; }
+
+    /// <summary>
+    /// Applies to <see cref="KeyValuePair{TKey, TValue}"/>.Key length.
+    /// It defaults to 255 characters.
+    /// <para>
+    /// A <see cref="CKException"/> is thrown if a <see cref="Meter.Tags"/>
+    /// or <see cref="Instrument.Tags"/> has a key longer than this limit.
+    /// This can be programatically changed if needed.
+    /// </para>
+    /// </summary>
+    public static int AttributeNameLengthLimit { get; set; }
+
+    /// <summary>
+    /// This applies to string tag values and string items in array of strings.
+    /// It defaults to 1024 characters.
+    /// <para>
+    /// A <see cref="CKException"/> is thrown if a <see cref="Meter.Tags"/>
+    /// or <see cref="Instrument.Tags"/> has a string value longer than this limit.
+    /// This can be programatically changed if needed.
+    /// </para>
+    /// </summary>
+    public static int AttributeValueLengthLimit { get; set; }
 
     /// <summary>
     /// The maximal <see cref="InstrumentConfiguration.CoolerTimeSpan"/> is one hour.
@@ -45,6 +74,11 @@ public static partial class DotNetMetrics
 
     static DotNetMetrics()
     {
+        MeterNameLengthLimit = 255;
+        AttributeCountLimit = 128;
+        AttributeNameLengthLimit = 255;
+        AttributeValueLengthLimit = 1023;
+
         _tag = ActivityMonitor.Tags.Context.FindOrCreate( "Metrics" );
         _filePath = ThisFile() ?? "DotNetMetrics.cs";
         _meters = new Dictionary<Meter, MeterState>();
@@ -68,9 +102,16 @@ public static partial class DotNetMetrics
 
     /// <summary>
     /// Gets the currently available instruments and their configuration.
+    /// <para>
+    /// This is a thread-safe snapshot of the metrics regardless of any concurrent
+    /// configurations being applied.
+    /// Use <see cref="GetAvailableMetricsAsync"/> instead to obtain a fully configured state.
+    /// </para>
     /// </summary>
     /// <returns>A <see cref="DotNetMetricsInfo"/>.</returns>
-    public static DotNetMetricsInfo GetAvailableMetrics()
+    public static DotNetMetricsInfo GetAvailableMetrics() => DoGetAvailableMetrics();
+
+    static DotNetMetricsInfo DoGetAvailableMetrics()
     {
         var result = new List<FullInstrumentInfo>();
         MeterState[] meters;
@@ -80,9 +121,24 @@ public static partial class DotNetMetrics
             meters = _meters.Values.ToArray();
         }
         // New instruments may be published concurrently here and this is fine.
-        // The 
         return new DotNetMetricsInfo( _currentTimerDueTime,
-                                      meters.SelectMany( m => m.InstrumentStates.Select( i => i.Info ) ).ToList() );
+                                      meters.SelectMany( m => m.InstrumentStates.Select( i => i.Info.Clone() ) ).ToList() );
+    }
+
+    /// <summary>
+    /// Gets the currently available instruments and their configuration.
+    /// <para>
+    /// This captures a configured state: no configuration are concurrently being applied.
+    /// This is typically useful in tests but in prodution, the synchronous <see cref="GetAvailableMetrics"/>
+    /// can be called: a "half applied" configuration is a configuration...
+    /// </para>
+    /// </summary>
+    /// <returns>A <see cref="DotNetMetricsInfo"/>.</returns>
+    public static Task<DotNetMetricsInfo> GetAvailableMetricsAsync()
+    {
+        var tc = new TaskCompletionSource<DotNetMetricsInfo>( TaskCreationOptions.RunContinuationsAsynchronously );
+        MicroAgent.Push( tc );
+        return tc.Task;
     }
 
     /// <summary>
@@ -113,14 +169,12 @@ public static partial class DotNetMetrics
         }
         if( newMeter )
         {
-            b.Clear().Append( "+Meter[" ).Append( mState.Info.JsonDescription ).Append( ']' );
-            SendMetricLog( b.ToString() );
             b.Clear();
+            SendMetricLog( _newMeterPrefix + mState.Info.JsonDescription );
         }
         var iState = InstrumentState.Create( mState, instrument, b );
         Throw.CheckState( _instruments.TryAdd( instrument, iState ) );
-        b.Clear().Append( "+Instrument[" ).Append( iState.Info.Info.JsonDescription ).Append( ']' ); 
-        SendMetricLog( b.ToString() );
+        SendMetricLog( _newInstrumentPrefix + iState.Info.Info.JsonDescription );
         // OnInstrumentPublished.
         MicroAgent.Push( iState );
     }
@@ -141,8 +195,7 @@ public static partial class DotNetMetrics
             }
             if( meter != null )
             {
-                var b = new StringBuilder( "-Meter[" ).Append( meter.Info.JsonDescription ).Append( ']' );
-                SendMetricLog( b.ToString() );
+                SendMetricLog( _disposedMeterPrefix + meter.Info.JsonDescription );
             }
         }
     }
@@ -166,9 +219,10 @@ public static partial class DotNetMetrics
         {
             if( m.Match( instrument.Info ) )
             {
-                return instrument.SetConfiguration( monitor, _listener, c );
+                return instrument.SetConfiguration( monitor, _listener, c, false );
             }
         }
+        monitor.Debug( $"No matching configuration for {(instrument.IsEnabled ? "en" : "dis")}abled instrument '{instrument.Info.FullName}'." );
         return false;
     }
 
@@ -186,9 +240,20 @@ public static partial class DotNetMetrics
         }
         // Also snapshots the instruments so we don't have to bother with concurently published instruments.
         var targets = meters.SelectMany( m => m.InstrumentStates ).ToList();
+        if( meters.Length == 0 )
+        {
+            monitor.Trace( "No existing meters yet." );
+        }
+        else if( targets.Count == 0 )
+        {
+            monitor.Trace( $"No instrument published yet for existing {meters.Length} meters." );
 
+        }
+        else
+        {
+            monitor.Trace( $"Considering {meters.Length} meters with {targets.Count} instruments." );
+        }
         _currentConfigurations = configuration.Configurations.ToImmutableArray();
-
         foreach( var instrument in targets )
         {
             ApplyConfigurations( monitor, instrument );

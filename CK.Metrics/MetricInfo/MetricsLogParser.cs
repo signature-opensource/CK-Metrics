@@ -6,11 +6,6 @@ namespace CK.Metrics;
 
 public readonly struct MetricsLogParser
 {
-    const string _newMeterPrefix = "+Meter[";
-    const string _disposedMeterPrefix = "-Meter[";
-    const string _newInstrumentPrefix = "+Instrument[";
-    const string _instrumentConfigurationPrefix = "+IConfig[";
-
     public readonly string Text;
 
     public readonly MetricsLogKind Kind;
@@ -25,7 +20,8 @@ public readonly struct MetricsLogParser
     {
         if( Kind == MetricsLogKind.NewMeter )
         {
-            return MeterInfo.DoTryParse( Text, _newMeterPrefix.Length, out meterInfo );
+            var head = Text.AsSpan( DotNetMetrics._newMeterPrefix.Length );
+            return MeterInfo.TryMatch( ref head, out meterInfo );
         }
         meterInfo = null;
         return false;
@@ -35,7 +31,8 @@ public readonly struct MetricsLogParser
     {
         if( Kind == MetricsLogKind.DisposedMeter )
         {
-            return MeterInfo.DoTryParse( Text, _disposedMeterPrefix.Length, out meterInfo );
+            var head = Text.AsSpan( DotNetMetrics._disposedMeterPrefix.Length );
+            return MeterInfo.TryMatch( ref head, out meterInfo );
         }
         meterInfo = null;
         return false;
@@ -45,7 +42,8 @@ public readonly struct MetricsLogParser
     {
         if( Kind == MetricsLogKind.NewInstrument )
         {
-            return InstrumentInfo.DoTryParse( Text, _newInstrumentPrefix.Length, out instrumentInfo );
+            var head = Text.AsSpan( DotNetMetrics._newInstrumentPrefix.Length );
+            return InstrumentInfo.TryMatch( ref head, out instrumentInfo );
         }
         instrumentInfo = null;
         return false;
@@ -55,7 +53,8 @@ public readonly struct MetricsLogParser
     {
         if( Kind == MetricsLogKind.InstrumentConfiguration )
         {
-            return InstrumentConfiguration.DoTryParse( Text, _instrumentConfigurationPrefix.Length, out instrumentConfiguration );
+            var head = Text.AsSpan( DotNetMetrics._instrumentConfigurationPrefix.Length );
+            return InstrumentConfiguration.TryMatch( ref head, out instrumentConfiguration );
         }
         instrumentConfiguration = null;
         return false;
@@ -68,23 +67,23 @@ public readonly struct MetricsLogParser
         if( text.Length >= 3 )
         {
             var s = text.AsSpan();
-            if( s.StartsWith( _newMeterPrefix, StringComparison.Ordinal ) )
+            if( s.StartsWith( DotNetMetrics._newMeterPrefix, StringComparison.Ordinal ) )
             {
                 return new MetricsLogParser( text, MetricsLogKind.NewMeter );
             }
-            if( s.StartsWith( _disposedMeterPrefix ) )
+            if( s.StartsWith( DotNetMetrics._disposedMeterPrefix ) )
             {
                 return new MetricsLogParser( text, MetricsLogKind.DisposedMeter );
             }
-            if( s.StartsWith( _newInstrumentPrefix ) )
+            if( s.StartsWith( DotNetMetrics._newInstrumentPrefix ) )
             {
                 return new MetricsLogParser( text, MetricsLogKind.NewInstrument );
             }
-            if( s.StartsWith( _instrumentConfigurationPrefix ) )
+            if( s.StartsWith( DotNetMetrics._instrumentConfigurationPrefix ) )
             {
                 return new MetricsLogParser( text, MetricsLogKind.NewInstrument );
             }
-            if( s.StartsWith( "M:" ) )
+            if( s.StartsWith( DotNetMetrics._measurePrefix ) )
             {
                 return new MetricsLogParser( text, MetricsLogKind.Measure );
             }

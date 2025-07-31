@@ -2,10 +2,7 @@ using CK.Core;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.Metrics;
-using System.IO;
 using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.RegularExpressions;
 
 namespace CK.Metrics;
 
@@ -18,11 +15,9 @@ public static partial class DotNetMetrics
         readonly Meter _meter;
         internal InstrumentState? _first;
         readonly MeterInfo _info;
-        readonly object _lock;
 
         MeterState( Meter meter, int id, ImmutableArray<KeyValuePair<string, object?>> tags, StringBuilder b )
         {
-            _lock = new object();
             _meter = meter;
             _info = new MeterInfo( meter.Name, meter.Version, telemetrySchemaUrl: null, tags, id );
         }
@@ -77,18 +72,22 @@ public static partial class DotNetMetrics
                     {
                         AddErrorOrWarning( ref error, $"{what} '{text}'", "Name must contain a-z, digits, underscores and can contain single dot separators." );
                     }
-                    else if( !MeterNameRegex().IsMatch( text ) )
+                    else
                     {
-                        AddErrorOrWarning( ref warning, $"{what} '{text}'", "Name must contain a-z, digits, underscores and can contain single dot separators." );
+                        if( text.Length > MeterNameLengthLimit )
+                        {
+                            AddErrorOrWarning( ref error, $"{what} '{text}'", $"Name cannot be longer than MeterNameLengthLimit that is {MeterNameLengthLimit}." );
+                        }
+                        if( !MeterNameRegex().IsMatch( text ) )
+                        {
+                            AddErrorOrWarning( ref error, $"{what} '{text}'", "Name must be a simple namespace-like identifier." );
+                        }
                     }
                 }
             }
         }
 
         public override string ToString() => _info.ToString();
-
-        [GeneratedRegex( "^[a-z][_a-z0-9]*(\\.[_a-z0-9]*)*$", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant )]
-        private static partial Regex MeterNameRegex();
 
     }
      

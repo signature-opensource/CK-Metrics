@@ -1,10 +1,12 @@
 using CK.Core;
 using NUnit.Framework;
+using Shouldly;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using static CK.Testing.MonitorTestHelper;
 
 namespace CK.Metrics.Tests.Metrics;
@@ -25,13 +27,14 @@ public class MeterLifeCycleTests
     {
         ActivityMonitor.OnStaticLog -= ActivityMonitor_OnStaticLog;
         AllEnableOrDisable( false );
+        _logs.Clear();
     }
 
     private static void AllEnableOrDisable( bool enable )
     {
         var c = new MetricsConfiguration();
         c.AutoObservableTimer = enable ? 50 : 0;
-        c.Configurations.Add( (new InstrumentMatcher( "*" ), enable ? InstrumentConfiguration.Default : InstrumentConfiguration.BasicallyEnabled) );
+        c.Configurations.Add( (new InstrumentMatcher( "*" ), enable ? InstrumentConfiguration.BasicEnabled : InstrumentConfiguration.BasicDisabled) );
         DotNetMetrics.ApplyConfiguration( TestHelper.Monitor, c );
     }
 
@@ -48,8 +51,8 @@ public class MeterLifeCycleTests
     {
         DotNetMetrics.MetricsTag.ToString().ShouldBe( "Metrics" );
         AllEnableOrDisable( true );
-        var threads = Enumerable.Range( 0, 2 )
-                        .Select( i => new Thread( () => CreateAndDestroyMeters( $"T{i}", 3 ) ) )
+        var threads = Enumerable.Range( 0, 8 )
+                        .Select( i => new Thread( () => CreateAndDestroyMeters( $"T{i}", 5 ) ) )
                         .ToArray();
         foreach( var t in threads ) t.Start();
         foreach( var t in threads ) t.Join();
@@ -58,6 +61,44 @@ public class MeterLifeCycleTests
         int createdCount = metricsLogs.Count( e => e.Kind == MetricsLogKind.NewMeter );
         int disposedCount = metricsLogs.Count( e => e.Kind == MetricsLogKind.DisposedMeter );
         createdCount.ShouldBe( disposedCount );
+    }
+
+    [Test]
+    public async Task disposed_Meter_are_detected_when_measuring_Async()
+    {
+        var meter = new Meter( "Some" );
+        try
+        {
+            var inst = meter.CreateCounter<int>( "hat_sold" )
+                            .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+
+            var metrics = await DotNetMetrics.GetAvailableMetricsAsync();
+            metrics.Instruments.Single().Configuration.Enabled.ShouldBeTrue();
+
+            var disposer = Task.Run( async () =>
+            {
+                await Task.Delay( 100 );
+                meter.Dispose();
+                await Task.Delay( 50 );
+            } );
+
+            int i = 0;
+            while( !disposer.IsCompleted )
+            {
+                inst.Add( i++ );
+                Thread.Sleep( 10 );
+            }
+#pragma warning disable VSTHRD103 // Call async methods when in an async method
+            metrics = DotNetMetrics.GetAvailableMetrics();
+#pragma warning restore VSTHRD103 
+            metrics.Instruments.ShouldBeEmpty();
+        }
+        finally
+        {
+            // Don't leave a meter on failure.
+            meter.Dispose();
+        }
+
     }
 
     static void CreateAndDestroyMeters( string name, int count )

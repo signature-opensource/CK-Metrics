@@ -1,9 +1,6 @@
 using CK.Core;
-using Microsoft.Extensions.Configuration;
 using System;
-using System.Collections.Immutable;
-using System.Linq;
-using System.Threading;
+using System.Diagnostics.Metrics;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
@@ -44,11 +41,40 @@ public static partial class DotNetMetrics
                         // OnInstrumentPublished.
                         if( ApplyConfigurations( monitor, i ) )
                         {
-                            var text = $"IConfig[{i.Info.Configuration.JsonDescription}]";
-                            SendMetricLog( text );
+                            SendInstrumentConfig( i.Info );
                         }
                         break;
+                    case ValueTuple<Instrument, InstrumentConfiguration> defaultConfig:
+                        // DefaultConfigure
+                        if( _instruments.TryGetValue( defaultConfig.Item1, out var iState ) )
+                        {
+                            if( iState.Info.Configuration.Equals( InstrumentConfiguration.BasicDisabled ) )
+                            {
+                                bool changed = iState.SetConfiguration( monitor, _listener, defaultConfig.Item2, true );
+                                Throw.DebugAssert( changed );
+                                SendInstrumentConfig( iState.Info );
+                            }
+                            else
+                            {
+                                monitor.Debug( $"Skipped DefaultConfigure for instrument '{iState.Info.FullName}' as it is already configured." );
+                            }
+                        }
+                        else
+                        {
+                            monitor.Warn( ActivityMonitor.Tags.ToBeInvestigated,
+                                          $"'{nameof( DefaultConfigure )}' method has been called on a non registered instrument." );
+                        }
+                        break;
+                    case TaskCompletionSource<DotNetMetricsInfo> tc:
+                        tc.SetResult( DoGetAvailableMetrics() );
+                        break;
                 }
+            }
+
+            static void SendInstrumentConfig( FullInstrumentInfo info )
+            {
+                var text = $"{_instrumentConfigurationPrefix}{info.Info.InstrumentId},{info.Configuration.JsonDescription}";
+                SendMetricLog( text );
             }
         }
 

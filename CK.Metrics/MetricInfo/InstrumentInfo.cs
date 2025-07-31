@@ -2,6 +2,7 @@ using CK.Core;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -76,7 +77,7 @@ public sealed class InstrumentInfo
          .Append( ",\"" ).Append( _name )
          .Append( "\",\"" ).Append( _typeName )
          .Append( "\",\"" ).Append( _measureTypeName )
-         .Append( "\"," ).Append( _isObservable ).Append( ",\"" );
+         .Append( "\"," ).Append( _isObservable ? "true" : "false" ).Append( ",\"" );
         if( _description != null )
         {
             w = new StringWriter( b );
@@ -94,9 +95,15 @@ public sealed class InstrumentInfo
         return b;
     }
 
-    internal static bool DoTryParse( string text, int idxStart, out InstrumentInfo? instrumentInfo )
+    /// <summary>
+    /// Tries to match and forward the <paramref name="head"/> on success.
+    /// </summary>
+    /// <param name="head">The head to match.</param>
+    /// <param name="instrumentInfo">The <see cref="InstrumentInfo"/> on success.</param>
+    /// <returns>True on success (head has been forwarded), false otherwise.</returns>
+    public static bool TryMatch( ref ReadOnlySpan<char> head, [NotNullWhen(true)]out InstrumentInfo? instrumentInfo )
     {
-        var head = text.AsSpan( idxStart );
+        var h = head;
         if( head.TryMatchInt32( out var instrumentId, minValue: 0 )
             && head.TryMatch( ',' )
             && head.TryMatchInt32( out var meterId, minValue: 0 )
@@ -115,6 +122,7 @@ public sealed class InstrumentInfo
             && head.TryMatch( ',' )
             && head.TryMatchTags( out var tags ) )
         {
+            int descLen = h.Length - head.Length;
             instrumentInfo = new InstrumentInfo( instrumentId,
                                                  meterId,
                                                  name,
@@ -124,12 +132,14 @@ public sealed class InstrumentInfo
                                                  measureTypeName,
                                                  tags,
                                                  isObservable,
-                                                 text.Substring( idxStart, text.Length - idxStart - 1 ) );
+                                                 new string( h.Slice( 0, descLen ) ) );
             return true;
         }
+        head = h;
         instrumentInfo = null;
         return false;
     }
+
 }
 
 

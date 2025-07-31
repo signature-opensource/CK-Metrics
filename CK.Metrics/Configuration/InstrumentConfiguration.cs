@@ -1,7 +1,6 @@
 using CK.Core;
 using System;
-using System.Text;
-using System.Threading.Tasks.Dataflow;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CK.Metrics;
 
@@ -20,12 +19,12 @@ public sealed class InstrumentConfiguration : IEquatable<InstrumentConfiguration
     /// <summary>
     /// Gets a default, disabled, instrument configuration.
     /// </summary>
-    public static readonly InstrumentConfiguration Default = new InstrumentConfiguration( false, "false" );
+    public static readonly InstrumentConfiguration BasicDisabled = new InstrumentConfiguration( false, "false" );
 
     /// <summary>
     /// Gets a default enabled instrument configuration without any options.
     /// </summary>
-    public static readonly InstrumentConfiguration BasicallyEnabled = new InstrumentConfiguration( true, "true" );
+    public static readonly InstrumentConfiguration BasicEnabled = new InstrumentConfiguration( true, "true" );
 
     /// <summary>
     /// Initializes a new configuration.
@@ -57,14 +56,21 @@ public sealed class InstrumentConfiguration : IEquatable<InstrumentConfiguration
 
     public override int GetHashCode() => HashCode.Combine( _enabled );
 
-    internal static bool DoTryParse( string text, int idxStart, out InstrumentConfiguration? instrumentConfiguration )
+    /// <summary>
+    /// Tries to match and forward the <paramref name="head"/> on success.
+    /// </summary>
+    /// <param name="head">The head to match.</param>
+    /// <param name="instrumentConfiguration">The <see cref="InstrumentConfiguration"/> on success.</param>
+    /// <returns>True on success (head has been forwarded), false otherwise.</returns>
+    public static bool TryMatch( ref ReadOnlySpan<char> head, [NotNullWhen( true )] out InstrumentConfiguration? instrumentConfiguration )
     {
-        var head = text.AsSpan( idxStart );
+        var h = head;
         if( head.TryMatchBool( out var enabled ) )
         {
-            instrumentConfiguration = enabled ? BasicallyEnabled : Default;
+            instrumentConfiguration = enabled ? BasicEnabled : BasicDisabled;
             return true;
         }
+        head = h;
         instrumentConfiguration = null;
         return false;
     }
