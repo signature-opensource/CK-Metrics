@@ -86,6 +86,7 @@ public static partial class DotNetMetrics
                     }
                 }
                 _info.Configuration = configuration;
+                OnConfigurationChanged( monitor, configuration  );
             }
             if( mustEnable.HasValue )
             {
@@ -100,6 +101,8 @@ public static partial class DotNetMetrics
             }
             return true;
         }
+
+        protected abstract void OnConfigurationChanged( IActivityMonitor monitor, InstrumentConfiguration configuration );
 
         internal bool OnMeasurementsCompleted()
         {

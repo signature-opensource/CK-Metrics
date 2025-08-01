@@ -1,8 +1,12 @@
 using CK.Core;
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Metrics;
 
 namespace CK.Metrics;
+
+public delegate bool TryMatchMeasurement<T>( ref ReadOnlySpan<char> head, out Measurement<T> measure ) where T : struct;
+
 
 public readonly struct MetricsLogParser
 {

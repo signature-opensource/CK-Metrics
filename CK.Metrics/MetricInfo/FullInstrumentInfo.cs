@@ -8,7 +8,7 @@ namespace CK.Metrics;
 /// <summary>
 /// Links a <see cref="InstrumentInfo"/> to its <see cref="MeterInfo"/> and <see cref="Configuration"/>.
 /// </summary>
-public sealed class FullInstrumentInfo
+public sealed class FullInstrumentInfo : ITrackedMetricsInfo
 {
     readonly MeterInfo _meterInfo;
     readonly InstrumentInfo _instrumentInfo;
@@ -48,6 +48,10 @@ public sealed class FullInstrumentInfo
     /// </summary>
     public string FullName => _fullName ??= _meterInfo.Name + '/' + _instrumentInfo.Name;
 
+    int ITrackedMetricsInfo.TrackeId => _instrumentInfo.InstrumentId;
+
+    string ITrackedMetricsInfo.Name => FullName;
+
     /// <summary>
     /// Gets or sets the instrument's configuration.
     /// </summary>
@@ -66,6 +70,15 @@ public sealed class FullInstrumentInfo
     /// </summary>
     /// <returns>A clone of this info.</returns>
     public FullInstrumentInfo Clone() => new FullInstrumentInfo( _meterInfo, _instrumentInfo, _configuration, _fullName );
+
+    internal Delegate GetMatcher()
+    {
+        return _instrumentInfo.MeasureTypeName switch
+                {
+                    "int" => 
+                };
+    }
+
 }
 
 

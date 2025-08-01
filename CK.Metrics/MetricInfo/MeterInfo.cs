@@ -9,7 +9,7 @@ using System.Text.Encodings.Web;
 
 namespace CK.Metrics;
 
-public sealed class MeterInfo
+public sealed class MeterInfo : ITrackedMetricsInfo
 {
     readonly string _name;
     readonly string? _version;
@@ -37,6 +37,8 @@ public sealed class MeterInfo
 
     public int MeterId => _meterId;
 
+    int ITrackedMetricsInfo.TrackeId => _meterId;
+
     public string? Version => _version;
 
     public ImmutableArray<KeyValuePair<string, object?>> Tags => _tags;
@@ -48,13 +50,14 @@ public sealed class MeterInfo
     string Write( StringBuilder b )
     {
         Throw.DebugAssert( b.Length == 0 );
-        var w = new StringWriter( b );
-        b.Append( _meterId ).Append( ",\"" );
-        JavaScriptEncoder.Default.Encode( w, _name );
-        b.Append( "\",\"" ).Append( _version );
-        b.Append( "\",\"" );
+        StringWriter? w = null;
+        b.Append( _meterId )
+         .Append( ",\"" ).Append( _name )
+         .Append( "\",\"" ).Append( _version )
+         .Append( "\",\"" );
         if( _telemetrySchemaUrl != null )
         {
+            w ??= new StringWriter();
             JavaScriptEncoder.Default.Encode( w, _telemetrySchemaUrl );
         }
         b.Append( "\",[" );

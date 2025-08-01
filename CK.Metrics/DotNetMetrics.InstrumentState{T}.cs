@@ -23,6 +23,11 @@ public static partial class DotNetMetrics
             Throw.DebugAssert( TypeExtensions.TypeAliases[typeof( T )] == measureTypeName );
         }
 
+        protected override void OnConfigurationChanged( IActivityMonitor monitor, InstrumentConfiguration configuration )
+        {
+            
+        }
+
         internal void HandleMeasure( T measurement, ReadOnlySpan<KeyValuePair<string, object?>> tags )
         {
             var text = $"M:{_sInstrumentId}:{measurement}";

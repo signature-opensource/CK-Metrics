@@ -12,6 +12,10 @@ impose some constraints that are stricter than the OpenTelemetry framework sugge
 
 ## Restrictions
 
+A fundamental restriction is the type of the measures that can be collected by the .Net [`Instrument<T>`](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.metrics.instrument-1)
+and [`ObservableInstrument<T>`](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.metrics.observableinstrument-1):
+a measure can be `byte`, `short`, `int`, `long`, `float`, `double` and `decimal`.
+
 ### Meter
 The meter's name must be a namespace-like simple identifier that cannot be longer than the
 static `int DotNetMetrics.MeterNameLengthLimit` that defaults to 255 charaters.

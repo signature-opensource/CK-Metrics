@@ -14,6 +14,7 @@ namespace CK.Metrics;
 public sealed class InstrumentConfiguration : IEquatable<InstrumentConfiguration>
 {
     readonly bool _enabled;
+    readonly LocalAggregateKind _aggregateKind;
     string? _jsonDesc;
 
     /// <summary>
@@ -40,6 +41,8 @@ public sealed class InstrumentConfiguration : IEquatable<InstrumentConfiguration
     /// Gets whether the instrument is enabled.
     /// </summary>
     public bool Enabled => _enabled;
+
+    public LocalAggregateKind AggregateKind => _aggregateKind;
 
     /// <summary>
     /// Gets the Json description.
