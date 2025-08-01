@@ -70,15 +70,6 @@ public sealed class FullInstrumentInfo : ITrackedMetricsInfo
     /// </summary>
     /// <returns>A clone of this info.</returns>
     public FullInstrumentInfo Clone() => new FullInstrumentInfo( _meterInfo, _instrumentInfo, _configuration, _fullName );
-
-    internal Delegate GetMatcher()
-    {
-        return _instrumentInfo.MeasureTypeName switch
-                {
-                    "int" => 
-                };
-    }
-
 }
 
 

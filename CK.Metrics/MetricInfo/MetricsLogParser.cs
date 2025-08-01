@@ -5,9 +5,6 @@ using System.Diagnostics.Metrics;
 
 namespace CK.Metrics;
 
-public delegate bool TryMatchMeasurement<T>( ref ReadOnlySpan<char> head, out Measurement<T> measure ) where T : struct;
-
-
 public readonly struct MetricsLogParser
 {
     public readonly string Text;
@@ -64,6 +61,40 @@ public readonly struct MetricsLogParser
         return false;
     }
 
+    public bool TryReadMeasure( out ParsedMeasureLog m )
+    {
+        if( Kind == MetricsLogKind.Measure )
+        {
+            var head = Text.AsSpan( DotNetMetrics._measurePrefix.Length );
+            if( head.TryMatchInt32( out var instrumentId, 0 ) && head.TryMatch( ',' ) )
+            {
+                var mH = head;
+                if( head.TrySkipDouble() )
+                {
+                    int mStart = mH.Length + DotNetMetrics._measurePrefix.Length;
+                    int mLength = head.Length - mH.Length;
+                    if( head.Length == 0 )
+                    {
+                        m = new ParsedMeasureLog( Text, instrumentId, mStart, mLength, 0 );
+                        return true;
+                    }
+                    if( head.TryMatch( ",[" ) && head[^1] == ']' )
+                    {
+                        if( head.Length == 1 )
+                        {
+                            m = new ParsedMeasureLog( Text, instrumentId, mStart, mLength, 0 );
+                            return true;
+                        }
+                        m = new ParsedMeasureLog( Text, instrumentId, mStart, mLength, head.Length - 1 + DotNetMetrics._measurePrefix.Length );
+                        return true;
+                    }
+                }
+            }
+        }
+        m = default;
+        return false;
+    }
+
 
     public static MetricsLogParser Create( string text )
     {
@@ -95,6 +126,5 @@ public readonly struct MetricsLogParser
         return new MetricsLogParser( text, MetricsLogKind.None );
 
     }
-
 }
 
