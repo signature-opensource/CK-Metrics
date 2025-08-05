@@ -14,7 +14,7 @@ namespace CK.Metrics;
 public sealed class InstrumentConfiguration : IEquatable<InstrumentConfiguration>
 {
     readonly bool _enabled;
-    readonly LocalAggregateKind _aggregateKind;
+    //readonly LocalAggregateKind _aggregateKind;
     string? _jsonDesc;
 
     /// <summary>
@@ -31,10 +31,16 @@ public sealed class InstrumentConfiguration : IEquatable<InstrumentConfiguration
     /// Initializes a new configuration.
     /// </summary>
     /// <param name="enabled">Whether the instrument must be enabled.</param>
-    public InstrumentConfiguration( bool enabled,
-                                    string? jsonDesc = null )
+    public InstrumentConfiguration( bool enabled )
+        : this( enabled, null )
+    {
+    }
+
+    internal InstrumentConfiguration( bool enabled,
+                                      string? jsonDesc )
     {
         _enabled = enabled;
+        _jsonDesc = jsonDesc;
     }
 
     /// <summary>
@@ -42,7 +48,7 @@ public sealed class InstrumentConfiguration : IEquatable<InstrumentConfiguration
     /// </summary>
     public bool Enabled => _enabled;
 
-    public LocalAggregateKind AggregateKind => _aggregateKind;
+    //public LocalAggregateKind AggregateKind => _aggregateKind;
 
     /// <summary>
     /// Gets the Json description.
@@ -60,7 +66,7 @@ public sealed class InstrumentConfiguration : IEquatable<InstrumentConfiguration
     public override int GetHashCode() => HashCode.Combine( _enabled );
 
     /// <summary>
-    /// Tries to match and forward the <paramref name="head"/> on success.
+    /// Tries to match a configuration and forward the <paramref name="head"/> on success.
     /// </summary>
     /// <param name="head">The head to match.</param>
     /// <param name="instrumentConfiguration">The <see cref="InstrumentConfiguration"/> on success.</param>

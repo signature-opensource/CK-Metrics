@@ -9,8 +9,18 @@ using System.Text.Encodings.Web;
 
 namespace CK.Metrics;
 
+/// <summary>
+/// Immutable capture of a <see cref="System.Diagnostics.Metrics.Meter"/>.
+/// Its <see cref="JsonDescription"/> can be parsed back by <see cref="TryMatch(ref ReadOnlySpan{char}, out CK.Metrics.MeterInfo?)"/>.
+/// </summary>
 public sealed class MeterInfo : ITrackedMetricsInfo
 {
+    /// <summary>
+    /// Null object pattern: an invalid missing singleton instance. <see cref="MeterId"/> is -1, <see cref="Name"/> and <see cref="JsonDescription"/>
+    /// are "Missing".
+    /// </summary>
+    public static readonly MeterInfo Missing = new MeterInfo( "Missing", null, null, [], -1, "\"Missing\"" );
+
     readonly string _name;
     readonly string? _version;
     readonly string? _telemetrySchemaUrl;
@@ -41,29 +51,27 @@ public sealed class MeterInfo : ITrackedMetricsInfo
 
     public string? Version => _version;
 
+    public bool IsMissing => _meterId == -1;
+
     public ImmutableArray<KeyValuePair<string, object?>> Tags => _tags;
 
-    public string JsonDescription => _jsonDesc ??= Write( new StringBuilder() ).ToString();
+    public string JsonDescription => _jsonDesc ??= Write();
 
     public string? TelemetrySchemaUrl => _telemetrySchemaUrl;
 
-    string Write( StringBuilder b )
+    string Write()
     {
-        Throw.DebugAssert( b.Length == 0 );
-        StringWriter? w = null;
-        b.Append( _meterId )
-         .Append( ",\"" ).Append( _name )
-         .Append( "\",\"" ).Append( _version )
-         .Append( "\",\"" );
-        if( _telemetrySchemaUrl != null )
-        {
-            w ??= new StringWriter();
-            JavaScriptEncoder.Default.Encode( w, _telemetrySchemaUrl );
-        }
-        b.Append( "\",[" );
-        DotNetMetrics.WriteTags( b, ref w, _tags.AsSpan() );
-        b.Append( ']' );
-        return b.ToString();
+        SafeWriter w = new SafeWriter();
+        w.Append( _meterId );
+        w.Append( ',' );
+        w.AppendJsonRawString( _name );
+        w.Append( ',' );
+        w.AppendJsonRawString( _version );
+        w.Append( ',' );
+        w.AppendEncodedJsonString( _telemetrySchemaUrl, useNullToken: false );
+        w.Append( ',' );
+        DotNetMetrics.WriteTags( ref w, _tags.AsSpan() );
+        return w.ToString();
     }
 
     /// <summary>
@@ -75,16 +83,21 @@ public sealed class MeterInfo : ITrackedMetricsInfo
     public static bool TryMatch( ref ReadOnlySpan<char> head, [NotNullWhen(true)]out MeterInfo? meterInfo )
     {
         var h = head;
-        if( head.TryMatchInt32( out var meterId, minValue: 0 )
+        if( head.TryMatchInteger( out int meterId ) && meterId >= -1
             && head.TryMatch( ',' )
-            && head.TryMatchString( true, out var name ) && !string.IsNullOrWhiteSpace( name )
+            && head.TryMatchJsonQuotedString( out var name ) && !string.IsNullOrWhiteSpace( name )
             && head.TryMatch( ',' )
-            && head.TryMatchString( false, out var version )
+            && head.TryMatchJsonQuotedString( out var version )
             && head.TryMatch( ',' )
-            && head.TryMatchString( true, out var telemetrySchemaUrl )
-            && head.TryMatch( "," )
+            && head.TryMatchJsonQuotedString( out var telemetrySchemaUrl )
+            && head.TryMatch( ',' )
             && head.TryMatchTags( out var tags ) )
         {
+            if( meterId == -1 )
+            {
+                meterInfo = Missing;
+                return true;
+            }
             int descLen = h.Length - head.Length;
             meterInfo = new MeterInfo( name,
                                        version.Length == 0 ? null : version,

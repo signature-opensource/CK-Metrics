@@ -63,36 +63,32 @@ public sealed class InstrumentInfo
 
     public bool IsObservable => _isObservable;
 
-    public string JsonDescription => _jsonDesc ??= Write( new StringBuilder() ).ToString();
+    public string JsonDescription => _jsonDesc ??= Write();
 
     public override string ToString() => JsonDescription;
 
-    internal StringBuilder Write( StringBuilder b )
+    internal string Write()
     {
-        Throw.DebugAssert( b.Length == 0 );
-        StringWriter? w = null;
+        SafeWriter w = new SafeWriter();
         // Name and types are purely ascii.
-        b.Append( _instrumentId )
-         .Append( ",\"" ).Append( _meterId )
-         .Append( ",\"" ).Append( _name )
-         .Append( "\",\"" ).Append( _typeName )
-         .Append( "\",\"" ).Append( _measureTypeName )
-         .Append( "\"," ).Append( _isObservable ? "true" : "false" ).Append( ",\"" );
-        if( _description != null )
-        {
-            w = new StringWriter( b );
-            JavaScriptEncoder.Default.Encode( w, _description );
-        }
-        b.Append( "\"," );
-        if( _unit != null )
-        {
-            w = new StringWriter( b );
-            JavaScriptEncoder.Default.Encode( w, _unit );
-        }
-        b.Append( "\",[" );
-        DotNetMetrics.WriteTags( b, ref w, _tags.AsSpan() );
-        b.Append( ']' );
-        return b;
+        w.Append( _instrumentId );
+        w.Append( ',' );
+        w.Append( _meterId );
+        w.Append( ',' );
+        w.AppendJsonRawString( _name );
+        w.Append( ',' );
+        w.AppendJsonRawString( _typeName );
+        w.Append( ',' );
+        w.AppendJsonRawString( _measureTypeName );
+        w.Append( ',' );
+        w.Append( _isObservable );
+        w.Append( ',' );
+        w.AppendEncodedJsonString( _description, useNullToken: false );
+        w.Append( ',' );
+        w.AppendEncodedJsonString( _unit, useNullToken: false );
+        w.Append( ',' );
+        DotNetMetrics.WriteTags( ref w, _tags.AsSpan() );
+        return w.ToString();
     }
 
     /// <summary>
@@ -104,21 +100,21 @@ public sealed class InstrumentInfo
     public static bool TryMatch( ref ReadOnlySpan<char> head, [NotNullWhen(true)]out InstrumentInfo? instrumentInfo )
     {
         var h = head;
-        if( head.TryMatchInt32( out var instrumentId, minValue: 0 )
+        if( head.TryMatchInteger( out int instrumentId ) && instrumentId >= 0
             && head.TryMatch( ',' )
-            && head.TryMatchInt32( out var meterId, minValue: 0 )
+            && head.TryMatchInteger( out int meterId ) && meterId >= -1
             && head.TryMatch( ',' )
-            && head.TryMatchString( false, out var name ) && !string.IsNullOrWhiteSpace( name )
+            && head.TryMatchJsonQuotedString( out var name ) && !string.IsNullOrWhiteSpace( name )
             && head.TryMatch( ',' )
-            && head.TryMatchString( false, out var typeName ) && !string.IsNullOrWhiteSpace( name )
+            && head.TryMatchJsonQuotedString( out var typeName ) && !string.IsNullOrWhiteSpace( typeName )
             && head.TryMatch( ',' )
-            && head.TryMatchString( false, out var measureTypeName ) && !string.IsNullOrWhiteSpace( name )
+            && head.TryMatchJsonQuotedString( out var measureTypeName ) && !string.IsNullOrWhiteSpace( measureTypeName )
             && head.TryMatch( ',' )
             && head.TryMatchBool( out var isObservable )
             && head.TryMatch( ',' )
-            && head.TryMatchString( true, out var description )
+            && head.TryMatchJsonQuotedString( out var description )
             && head.TryMatch( ',' )
-            && head.TryMatchString( true, out var unit )
+            && head.TryMatchJsonQuotedString( out var unit )
             && head.TryMatch( ',' )
             && head.TryMatchTags( out var tags ) )
         {

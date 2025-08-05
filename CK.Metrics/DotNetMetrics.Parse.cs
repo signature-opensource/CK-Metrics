@@ -1,8 +1,11 @@
 using CK.Core;
+using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using static CK.Core.ActivityMonitor;
 
 namespace CK.Metrics;
 
@@ -14,102 +17,210 @@ public static partial class DotNetMetrics
 {
     internal static bool TryMatchTags( this ref ReadOnlySpan<char> s, out ImmutableArray<KeyValuePair<string, object?>> t )
     {
-        t = [];
-        ImmutableArray<KeyValuePair<string, object?>>.Builder? tags = null;
         s.TryMatch( '[' );
-        while( !s.TryMatch( ']' ) )
+        if( s.TryMatch(']') )
         {
-            if( !TryMatchString( ref s, true, out var key )
-                || !s.TryMatch( ',' )
-                || s.Length < 2 )
-            {
-                return false;
-            }
-            switch( s[0] )
-            {
-                case '"':
-                    tags ??= ImmutableArray.CreateBuilder<KeyValuePair<string, object?>>();
-                    if( !TryMatchString( ref s, true, out var value ) )
-                    {
-                        return false;
-                    }
-                    tags.Add( new KeyValuePair<string, object?>( key, value ) );
-                    break;
-                case 't':
-                    if( !s.TryMatch( "true" ) )
-                    {
-                        return false;
-                    }
-                    tags ??= ImmutableArray.CreateBuilder<KeyValuePair<string, object?>>();
-                    tags.Add( new KeyValuePair<string, object?>( key, true ) );
-                    break;
-                case 'f':
-                    if( !s.TryMatch( "false" ) )
-                    {
-                        return false;
-                    }
-                    tags ??= ImmutableArray.CreateBuilder<KeyValuePair<string, object?>>();
-                    tags.Add( new KeyValuePair<string, object?>( key, false ) );
-                    break;
-                case 'n':
-                    // Handle null for InstrumentMatcher.Include/ExcludeTags.
-                    // Null are not allowed in regular tags (note that we validate meter
-                    // and instrument tags but not measures' tags).
-                    if( !s.TryMatch( "null" ) )
-                    {
-                        return false;
-                    }
-                    tags ??= ImmutableArray.CreateBuilder<KeyValuePair<string, object?>>();
-                    tags.Add( new KeyValuePair<string, object?>( key, null ) );
-                    break;
-                default:
-                    if( !TryMatchLongXOrDouble( ref s, out var num ) )
-                    {
-                        return false;
-                    }
-                    tags ??= ImmutableArray.CreateBuilder<KeyValuePair<string, object?>>();
-                    tags.Add( new KeyValuePair<string, object?>( key, num ) );
-                    break;
-            }
+            t = [];
+            return true;
         }
-        if( tags != null ) t = tags.DrainToImmutable();
-        return true;
+        if( ReadKeyValueTag( ref s, out var tag ) )
+        {
+            if( s.TryMatch( ']' ) )
+            {
+                t = [ tag ];
+                return true;
+            }
+            var tags = ImmutableArray.CreateBuilder<KeyValuePair<string, object?>>( 4 );
+            tags.Add( tag );
+            do
+            {
+                if( !s.TryMatch( ',' ) || !ReadKeyValueTag( ref s, out tag ) )
+                {
+                    goto error;
+                }
+                tags.Add( tag );
+            }
+            while( !s.TryMatch( ']' ) );
+            t = tags.DrainToImmutable();
+            return true;
+        }
+        error:
+        t = [];
+        return false;
     }
 
-    internal static bool TryMatchString( this ref ReadOnlySpan<char> head, bool decode, [NotNullWhen( true )] out string? s )
+    static bool ReadKeyValueTag( ref ReadOnlySpan<char> s, out KeyValuePair<string,object?> tag )
     {
-        s = null;
-        var h = head;
-        if( !head.TrySkipJSONQuotedString() ) return false;
-        // Ignores leading and trailing ".
-        var len = h.Length - head.Length - 2;
-        if( len == 0 )
+        if( !s.TryMatchJsonQuotedString( out var key )
+            || !s.TryMatch( ',' )
+            || s.Length < 2
+            || !ReadTagValue( ref s, out object? value, allowArray: true ) )
         {
-            s = string.Empty;
+            tag = default;
+            return false;
         }
-        else if( !decode )
+        Throw.DebugAssert( value is null or string or bool or long or double
+                                         or string[] or bool[] or long[] or double[] );
+        tag = new KeyValuePair<string, object?>( key, value );
+        return true;
+    }
+
+    static bool ReadTagValue( ref ReadOnlySpan<char> head, out object? value, bool allowArray )
+    {
+        value = default;
+        switch( head[0] )
         {
-            s = new string( h.Slice( 1, len ) );
-        }
-        else
-        {
-            s = new string( h.Slice( 1, h.Length - head.Length - 2 ) );
+            case '"':
+                if( !head.TryMatchJsonQuotedString( out string? s ) )
+                {
+                    return false;
+                }
+                value = s;
+                break;
+            case 't':
+                if( !head.TryMatch( "true" ) )
+                {
+                    return false;
+                }
+                value = true;
+                break;
+            case 'f':
+                if( !head.TryMatch( "false" ) )
+                {
+                    return false;
+                }
+                value = false;
+                break;
+            case '[':
+                head = head.Slice( 1 );
+                if( !allowArray || head.Length == 0 )
+                {
+                    return false;
+                }
+                if( head.TryMatch( ']' ) )
+                {
+                    value = Array.Empty<string>();
+                    return true;
+                }
+                return TryMatchArray( ref head, out value );
+            case 'n':
+                return head.TryMatch( "null" );
+            default:
+                return TryMatchLongXOrDouble( ref head, out value );
         }
         return true;
     }
 
-    internal static bool TryMatchLongXOrDouble( this ref ReadOnlySpan<char> head, [NotNullWhen( true )] out object? v )
+    static bool TryMatchArray( ref ReadOnlySpan<char> head, out object? array )
+    {
+        Throw.DebugAssert( head[0] != '[' && head[0] != ']' );
+        if( !ReadTagValue( ref head, out object? first, allowArray: false ) )
+        {
+            array = default;
+            return false;
+        }
+        Throw.DebugAssert( first is null or string or bool or long or double );
+        if( first is null or string )
+        {
+            // Only strings can be null: this is an array of string.
+            // Single string or null?
+            if( head.TryMatch( ']' ) )
+            {
+                array = new string?[] { (string?)first };
+                return true;
+            }
+            var strings = new List<string?>() { (string?)first };
+            while( head.TryMatch( ',' ) )
+            {
+                if( !head.TryMatchJsonQuotedString( out var s ) && !head.TryMatch( "null" ) )
+                {
+                    array = default;
+                    return false;
+                }
+                strings.Add( s );
+            }
+            array = strings.ToArray();
+        }
+        else if( first is long firstLong )
+        {
+            // Single long?
+            if( head.TryMatch( ']' ) )
+            {
+                array = new long[] { firstLong };
+                return true;
+            }
+            var longs = new List<long>() { firstLong };
+            while( head.TryMatch( ',' ) )
+            {
+                if( !head.TryMatchInteger( out long l ) )
+                {
+                    array = default;
+                    return false;
+                }
+                longs.Add( l );
+            }
+            array = longs.ToArray();
+        }
+        else if( first is double firstDouble )
+        {
+            // Single double?
+            if( head.TryMatch( ']' ) )
+            {
+                array = new double[] { firstDouble };
+                return true;
+            }
+            var doubles = new List<double>() { firstDouble };
+            while( head.TryMatch( ',' ) )
+            {
+                if( !head.TryMatchFloatingNumber( out double d ) )
+                {
+                    array = default;
+                    return false;
+                }
+                doubles.Add( d );
+            }
+            array = doubles.ToArray();
+        }
+        else 
+        {
+            // Single bool?
+            if( head.TryMatch( ']' ) )
+            {
+                array = new bool[] { (bool)first };
+                return true;
+            }
+            var bools = new List<bool>() { (bool)first };
+            while( head.TryMatch( ',' ) )
+            {
+                if( !head.TryMatchBool( out var b ) )
+                {
+                    array = default;
+                    return false;
+                }
+                bools.Add( b );
+            }
+            array = bools.ToArray();
+        }
+        if( head.TryMatch( ']' ) )
+        {
+            return true;
+        }
+        array = default;
+        return false;
+    }
+
+    static bool TryMatchLongXOrDouble( this ref ReadOnlySpan<char> head, [NotNullWhen( true )] out object? v )
     {
         v = null;
         var h = head;
-        // Silently skips leading - is any.
-        head.TryMatch( '-' );
-        if( head.TryMatchDigits( out var digits ) )
+        // Silently skips leading '-' if any.
+        h.TryMatch( '-' );
+        if( h.TrySkipDigits() )
         {
-            if( head.Length == 0 || head[0] != '.' )
+            if( h.Length == 0 || (h[0] != '.' && h[0] != 'E') )
             {
-                // We are on not on a floating number.
-                if( !long.TryParse( h, out var longResult ) )
+                // We are on NOT on a double.
+                if( !head.TryMatchInteger( out long longResult ) )
                 {
                     return false;
                 }
@@ -117,7 +228,7 @@ public static partial class DotNetMetrics
                 return true;
             }
         }
-        if( !h.TryMatchDouble( out var doubleResult ) )
+        if( !head.TryMatchFloatingNumber( out double doubleResult ) )
         {
             return false;
         }

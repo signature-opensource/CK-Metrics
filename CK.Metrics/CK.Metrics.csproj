@@ -6,7 +6,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="CK.Globalization" Version="3.0.1--0004-develop" />
+        <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="24.0.1--0008-develop" />
         <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.7" />
     </ItemGroup>
 

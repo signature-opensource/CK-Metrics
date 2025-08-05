@@ -1,20 +1,44 @@
 using CK.Core;
-using CK.Metrics;
-using System.Diagnostics.Metrics;
+using System;
+using System.Collections.Generic;
 
-namespace CK.Monitoring.Metrics;
+namespace CK.Metrics;
 
-public abstract class MetricsLogReader
+/// <summary>
+/// Receives logs that should be emitted by the the <see cref="ActivityMonitor.StaticLogger"/>
+/// and tagged with <see cref="DotNetMetrics.MetricsTag"/>.
+/// <para>
+/// Maintains a Meter/Instrument structure with associated external optional states and offers
+/// <see cref="OnNewMeter(IActivityMonitor, MeterInfo)"/>, 
+/// <see cref="OnNewInstrument(IActivityMonitor, FullInstrumentInfo, object?)"/>,
+/// <see cref="OnMeasure(IActivityMonitor, FullInstrumentInfo, object?, DateTime, in ParsedMeasureLog)"/>
+/// and <see cref="OnDisposedMeter(IActivityMonitor, MeterInfo, object?, IReadOnlyList{ValueTuple{FullInstrumentInfo?, object?}})"/>
+/// abstract methods.
+/// </para>
+/// </summary>
+public abstract class MetricsLogDispatcher
 {
     readonly InstanceTracker<MeterInfo> _meterTracker;
     readonly InstanceTracker<FullInstrumentInfo> _instrumentTracker;
 
-    public MetricsLogReader( int maxExpectedMeterCount = 100, int maxExpectedInstrumentCount = 200 )
+    /// <summary>
+    /// Initializes a new <see cref="MetricsLogDispatcher"/>.
+    /// </summary>
+    /// <param name="maxExpectedMeterCount">Expected number of meters that will send measures.</param>
+    /// <param name="maxExpectedInstrumentCount">Expected number of instruments that will send measures.</param>
+    public MetricsLogDispatcher( int maxExpectedMeterCount = 100, int maxExpectedInstrumentCount = 200 )
     {
         _meterTracker = new InstanceTracker<MeterInfo>( maxExpectedMeterCount );
         _instrumentTracker = new InstanceTracker<FullInstrumentInfo>( maxExpectedInstrumentCount );
     }
 
+    /// <summary>
+    /// Adds a log line that should have been emitted by the <see cref="ActivityMonitor.StaticLogger"/>
+    /// and be tagged with <see cref="DotNetMetrics.MetricsTag"/>.
+    /// </summary>
+    /// <param name="monitor">The monitor to use.</param>
+    /// <param name="logTime">The time of the log.</param>
+    /// <param name="log">The log text.</param>
     public void Add( IActivityMonitor monitor, DateTime logTime, string log )
     {
         var p = MetricsLogParser.Create( log );
@@ -26,7 +50,7 @@ public abstract class MetricsLogReader
                     var (i,state) = _instrumentTracker.Find( m.InstrumentId );
                     if( i != null )
                     {
-                        HandleMeasure( monitor, i, state, logTime, m );
+                        OnMeasure( monitor, i, state, logTime, m );
                     }
                     else
                     {
@@ -112,7 +136,7 @@ public abstract class MetricsLogReader
                     if( _meterTracker.TryRemove( disposedMeter.MeterId, out var meter, out var meterState ) )
                     {
                         var removed = _instrumentTracker.Cleanup( monitor, ( monitor, i, state ) => i.MeterInfo.MeterId == disposedMeter.MeterId );
-                        OnDisposedMeter( meter, meterState, removed ?? [] );
+                        OnDisposedMeter( monitor, meter, meterState, removed ?? [] );
                     }
                     else
                     {
@@ -145,10 +169,12 @@ public abstract class MetricsLogReader
     /// <summary>
     /// Called on disposed meter.
     /// </summary>
+    /// <param name="monitor">The monitor.</param>
     /// <param name="meter">The disposed meter.</param>
     /// <param name="meterState">The associated meter state.</param>
     /// <param name="instruments">The meter's instruments (and their states) that have been unregistered.</param>
-    protected abstract void OnDisposedMeter( MeterInfo meter,
+    protected abstract void OnDisposedMeter( IActivityMonitor monitor,
+                                             MeterInfo meter,
                                              object? meterState,
                                              IReadOnlyList<(FullInstrumentInfo? Instrument, object? InstrumentState)> instruments );
 
@@ -165,15 +191,15 @@ public abstract class MetricsLogReader
     /// Called on each measure.
     /// </summary>
     /// <param name="monitor">The monitor.</param>
-    /// <param name="i">The instrument that emitted the measure.</param>
+    /// <param name="instrument">The instrument that emitted the measure.</param>
     /// <param name="instrumentState">The optional state associated to the instrument.</param>
     /// <param name="measureTime">Time of the measure.</param>
     /// <param name="measure">The measure.</param>
-    protected abstract void HandleMeasure( IActivityMonitor monitor,
-                                           FullInstrumentInfo i,
-                                           object? instrumentState,
-                                           DateTime measureTime,
-                                           ParsedMeasureLog measure );
+    protected abstract void OnMeasure( IActivityMonitor monitor,
+                                       FullInstrumentInfo instrument,
+                                       object? instrumentState,
+                                       DateTime measureTime,
+                                       in ParsedMeasureLog measure );
 }
 
 

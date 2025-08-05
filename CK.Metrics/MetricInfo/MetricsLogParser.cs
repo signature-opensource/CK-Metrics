@@ -66,10 +66,12 @@ public readonly struct MetricsLogParser
         if( Kind == MetricsLogKind.Measure )
         {
             var head = Text.AsSpan( DotNetMetrics._measurePrefix.Length );
-            if( head.TryMatchInt32( out var instrumentId, 0 ) && head.TryMatch( ',' ) )
+            if( head.TryMatchInteger( out int instrumentId )
+                && instrumentId >= 0
+                && head.TryMatch( ',' ) )
             {
                 var mH = head;
-                if( head.TrySkipDouble() )
+                if( head.TrySkipFloatingNumber() )
                 {
                     int mStart = mH.Length + DotNetMetrics._measurePrefix.Length;
                     int mLength = head.Length - mH.Length;

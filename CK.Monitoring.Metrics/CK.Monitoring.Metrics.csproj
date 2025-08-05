@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CK.Monitoring" Version="24.0.1--0014-develop" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CK.Metrics\CK.Metrics.csproj" />
   </ItemGroup>
 

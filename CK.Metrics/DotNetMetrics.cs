@@ -144,16 +144,14 @@ public static partial class DotNetMetrics
     /// <summary>
     /// Applies a <see cref="MetricsConfiguration"/>.
     /// </summary>
-    /// <param name="monitor">The monitor to use.</param>
     /// <param name="configuration">The configuration to apply.</param>
-    public static void ApplyConfiguration( IActivityMonitor monitor, MetricsConfiguration configuration ) => MicroAgent.Push( configuration );
+    public static void ApplyConfiguration( MetricsConfiguration configuration ) => MicroAgent.Push( configuration );
 
     static void OnInstrumentPublished( Instrument instrument, MeterListener listener )
     {
         Throw.DebugAssert( !_instruments.ContainsKey( instrument ) );
         Throw.DebugAssert( listener == _listener );
 
-        StringBuilder b = new StringBuilder();
         var meter = instrument.Meter;
 
         MeterState? mState = null;
@@ -163,16 +161,21 @@ public static partial class DotNetMetrics
             if( !_meters.TryGetValue( meter, out mState ) )
             {
                 newMeter = true;
-                mState = MeterState.Create( meter, b );
+                // Don't throw exception here: the poor MetricListener will be in trouble:
+                // simply forget the meter and its instrument.
+                mState = MeterState.Create( meter );
+                if( mState == null ) return;
                 _meters.Add( meter, mState );
             }
         }
         if( newMeter )
         {
-            b.Clear();
             SendMetricLog( _newMeterPrefix + mState.Info.JsonDescription );
         }
-        var iState = InstrumentState.Create( mState, instrument, b );
+        // Don't throw exception here: the poor MetricListener will be in trouble:
+        // simply forget the instrument.
+        var iState = InstrumentState.Create( mState, instrument );
+        if( iState == null ) return;
         Throw.CheckState( _instruments.TryAdd( instrument, iState ) );
         SendMetricLog( _newInstrumentPrefix + iState.Info.Info.JsonDescription );
         // OnInstrumentPublished.

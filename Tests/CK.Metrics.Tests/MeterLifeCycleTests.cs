@@ -11,6 +11,7 @@ using static CK.Testing.MonitorTestHelper;
 
 namespace CK.Metrics.Tests.Metrics;
 
+
 [TestFixture]
 public class MeterLifeCycleTests
 {
@@ -34,8 +35,10 @@ public class MeterLifeCycleTests
     {
         var c = new MetricsConfiguration();
         c.AutoObservableTimer = enable ? 50 : 0;
-        c.Configurations.Add( (new InstrumentMatcher( "*" ), enable ? InstrumentConfiguration.BasicEnabled : InstrumentConfiguration.BasicDisabled) );
-        DotNetMetrics.ApplyConfiguration( TestHelper.Monitor, c );
+        c.Configurations.Add( (new InstrumentMatcher( "*" ), enable
+                                                              ? InstrumentConfiguration.BasicEnabled
+                                                              : InstrumentConfiguration.BasicDisabled) );
+        DotNetMetrics.ApplyConfiguration( c );
     }
 
     void ActivityMonitor_OnStaticLog( ref ActivityMonitorLogData data )

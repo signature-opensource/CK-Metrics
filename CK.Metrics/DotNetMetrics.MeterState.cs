@@ -1,8 +1,14 @@
 using CK.Core;
+using CommunityToolkit.HighPerformance;
+using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.Metrics;
+using System.Diagnostics.SymbolStore;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Xml.Linq;
 
 namespace CK.Metrics;
 
@@ -16,7 +22,7 @@ public static partial class DotNetMetrics
         internal InstrumentState? _first;
         readonly MeterInfo _info;
 
-        MeterState( Meter meter, int id, ImmutableArray<KeyValuePair<string, object?>> tags, StringBuilder b )
+        MeterState( Meter meter, int id, ImmutableArray<KeyValuePair<string, object?>> tags )
         {
             _meter = meter;
             _info = new MeterInfo( meter.Name, meter.Version, telemetrySchemaUrl: null, tags, id );
@@ -39,52 +45,21 @@ public static partial class DotNetMetrics
             }
         }
 
-        internal static MeterState Create( Meter meter, StringBuilder b )
+        internal static MeterState? Create( Meter meter )
         {
-            Throw.DebugAssert( b.Length == 0 );
             StringBuilder? error = null;
-            Validate( ref error, warning: b, meter, out var tags );
-            if( b.Length != 0 )
+            StringBuilder? warning = null;
+            Validate( ref error, ref warning, meter, out var tags );
+            if( warning != null )
             {
-                ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, _tag, b.ToString(), null, _filePath, 1 );
-                b.Clear();
+                ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, _tag, warning.ToString(), null, _filePath, 1 );
             }
             if( error != null )
             {
-                throw new CKException( error.ToString() );
+                ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Error | LogLevel.IsFiltered, _tag, error.ToString(), null, _filePath, 1 );
+                return null;
             }
-            return new MeterState( meter, ++_currentMeterId, tags, b );
-
-            static void Validate( ref StringBuilder? error,
-                                  StringBuilder warning,
-                                  Meter meter,
-                                  out ImmutableArray<KeyValuePair<string,object?>> tags )
-            {
-                // Applying https://opentelemetry.io/docs/specs/semconv/general/naming/#recommendations-for-opentelemetry-authors
-                CheckMeterName( ref error, warning, "Meter name", meter.Name );
-                tags = meter.Tags != null
-                        ? ValidateTags( ref error, warning, meter.Tags, () => $"Meter '{meter.Name}'" )
-                        : [];
-
-                static void CheckMeterName( ref StringBuilder? error, StringBuilder warning, string what, string text )
-                {
-                    if( string.IsNullOrWhiteSpace( text ) )
-                    {
-                        AddErrorOrWarning( ref error, $"{what} '{text}'", "Name must contain a-z, digits, underscores and can contain single dot separators." );
-                    }
-                    else
-                    {
-                        if( text.Length > MeterNameLengthLimit )
-                        {
-                            AddErrorOrWarning( ref error, $"{what} '{text}'", $"Name cannot be longer than MeterNameLengthLimit that is {MeterNameLengthLimit}." );
-                        }
-                        if( !MeterNameRegex().IsMatch( text ) )
-                        {
-                            AddErrorOrWarning( ref error, $"{what} '{text}'", "Name must be a simple namespace-like identifier." );
-                        }
-                    }
-                }
-            }
+            return new MeterState( meter, ++_currentMeterId, tags );
         }
 
         public override string ToString() => _info.ToString();

@@ -1,6 +1,7 @@
 using CK.Core;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -15,42 +16,74 @@ public static partial class DotNetMetrics
     internal const string _instrumentConfigurationPrefix = "+IConfig:";
     internal const string _measurePrefix = "M:";
 
-    internal static void WriteTags( StringBuilder b, ref StringWriter? w, ReadOnlySpan<KeyValuePair<string, object?>> tags )
+    internal static void WriteTags( ref SafeWriter w, ReadOnlySpan<KeyValuePair<string, object?>> tags )
     {
+        w.Append( '[' );
+        bool atLeastOne = false;
         foreach( var tag in tags )
         {
-            WriteTag( b, ref w, tag );
+            if( atLeastOne ) w.Append( ',' );
+            atLeastOne = true;
+            WriteTag( ref w, tag );
         }
+        w.Append( ']' );
     }
 
-    static void WriteTag( StringBuilder b, ref StringWriter? w, KeyValuePair<string, object?> tag )
+    static void WriteTag( ref SafeWriter w, KeyValuePair<string, object?> tag )
     {
-        w ??= new StringWriter( b );
-        b.Append( '"' );
-        JavaScriptEncoder.Default.Encode( w, tag.Key );
-        b.Append( '"' );
+        Throw.DebugAssert( tag.Key != null );
+        w.AppendEncodedJsonString( tag.Key, useNullToken: false );
         switch( tag.Value )
         {
-            case null: b.Append( ",null" ); break;
-            case true: b.Append( ",true" ); break;
-            case false: b.Append( ",false" ); break;
+            case null: w.Append( ",null" ); break;
+            case true: w.Append( ",true" ); break;
+            case false: w.Append( ",false" ); break;
             case string s:
-                b.Append( ",\"" );
-                JavaScriptEncoder.Default.Encode( w, s );
-                b.Append( '"' );
+                w.Append( ',' );
+                w.AppendEncodedJsonString( s, useNullToken: true );
                 break;
-            case int i: b.Append( ',' ).Append( i ); break;
-            case double i: b.Append( ',' ).Append( i ); break;
-            case long i: b.Append( ',' ).Append( i ); break;
-            case int[] a: AppendArray( b, a ); break;
-            case double[] a: AppendArray( b, a ); break;
-            case long[] a: AppendArray( b, a ); break;
-            case string[] a: AppendStringArray( b, w, a ); break;
+            case double i:
+                w.Append( ',' );
+                w.AppendExplicitDouble( i );
+                break;
+            case long i:
+                w.Append( ',' );
+                w.Append( i );
+                break;
+            case double[] a:
+                w.Append( ',' );
+                w.AppendArrayOfExplicitDouble( a );
+                break;
+            case long[] a:
+                w.Append( ',' );
+                w.AppendArray( a );
+                break;
+            case bool[] a:
+                w.Append( ',' );
+                w.AppendArray( a );
+                break;
+            case string[] a:
+                w.Append( ',' );
+                w.AppendArrayOfEncodedJsonString( a );
+                break;
             default: throw new CKException( $"Invalid attribute value type '{tag.Value.GetType()}'." );
         }
     }
 
     static void AppendArray<T>( StringBuilder b, T[] a ) where T : struct
+    {
+        b.Append( ",[" );
+        bool atLeastOne = false;
+        foreach( var v in a )
+        {
+            if( atLeastOne ) b.Append( ',' );
+            atLeastOne = true;
+            b.Append( v );
+        }
+        b.Append( ']' );
+    }
+
+    static void AppendLongArray<T>( StringBuilder b, long[] a ) where T : struct
     {
         b.Append( ",[" );
         bool atLeastOne = false;

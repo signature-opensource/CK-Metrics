@@ -32,7 +32,7 @@ public sealed class InstrumentMatcher
 
     /// <summary>
     /// Gets the required tags that must appear in <see cref="MeterInfo.Tags"/> or <see cref="InstrumentInfo.Tags"/>.
-    /// Since a <c>null</c> is not expected in tag values, a <c>null</c> value matches any tag value.
+    /// Since a <c>null</c> is not welcome (but accepted) in tag values, a <c>null</c> value matches any tag value.
     /// </summary>
     public ImmutableArray<KeyValuePair<string, object?>> IncludeTags => _includeTags;
 

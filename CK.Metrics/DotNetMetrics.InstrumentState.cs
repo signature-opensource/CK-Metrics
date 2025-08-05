@@ -122,8 +122,7 @@ public static partial class DotNetMetrics
                                    int id,
                                    string typeName,
                                    string measureTypeName,
-                                   ImmutableArray<KeyValuePair<string, object?>> tags,
-                                   StringBuilder b )
+                                   ImmutableArray<KeyValuePair<string, object?>> tags )
         {
             _lock = new object();
             _meter = meter;
@@ -144,15 +143,14 @@ public static partial class DotNetMetrics
             Interlocked.Exchange( ref meter._first, this );
         }
 
-        public static InstrumentState Create( MeterState meter, Instrument instrument, StringBuilder b )
+        public static InstrumentState Create( MeterState meter, Instrument instrument )
         {
-            Throw.DebugAssert( b.Length == 0 );
             StringBuilder? error = null;
-            Validate( ref error, b, instrument, out var typeName, out var measureType, out var tags );
-            if( b.Length > 0 )
+            StringBuilder? warning = null;
+            Validate( ref error, ref warning, instrument, out var typeName, out var measureType, out var tags );
+            if( warning != null )
             {
-                ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, _tag, b.ToString(), null, _filePath, 1 );
-                b.Clear();
+                ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Warn | LogLevel.IsFiltered, _tag, warning.ToString(), null, _filePath, 1 );
             }
             if( error != null )
             {
@@ -160,71 +158,30 @@ public static partial class DotNetMetrics
             }
             if( measureType == typeof( int ) )
             {
-                return new InstrumentState<int>( meter, instrument, ++_currentInstrumentId, typeName, "int", tags, b );
+                return new InstrumentState<int>( meter, instrument, ++_currentInstrumentId, typeName, "int", tags );
             }
             if( measureType == typeof( double ) )
             {
-                return new InstrumentState<double>( meter, instrument, ++_currentInstrumentId, typeName, "double", tags, b );
+                return new InstrumentState<double>( meter, instrument, ++_currentInstrumentId, typeName, "double", tags );
             }
             if( measureType == typeof( long ) )
             {
-                return new InstrumentState<long>( meter, instrument, ++_currentInstrumentId, typeName, "long", tags, b );
+                return new InstrumentState<long>( meter, instrument, ++_currentInstrumentId, typeName, "long", tags );
             }
             if( measureType == typeof( float ) )
             {
-                return new InstrumentState<float>( meter, instrument, ++_currentInstrumentId, typeName, "float", tags, b );
+                return new InstrumentState<float>( meter, instrument, ++_currentInstrumentId, typeName, "float", tags );
             }
             if( measureType == typeof( byte ) )
             {
-                return new InstrumentState<byte>( meter, instrument, ++_currentInstrumentId, typeName, "byte", tags, b );
+                return new InstrumentState<byte>( meter, instrument, ++_currentInstrumentId, typeName, "byte", tags );
             }
             if( measureType == typeof( short ) )
             {
-                return new InstrumentState<short>( meter, instrument, ++_currentInstrumentId, typeName, "short", tags, b );
+                return new InstrumentState<short>( meter, instrument, ++_currentInstrumentId, typeName, "short", tags );
             }
             Throw.DebugAssert( measureType == typeof( decimal ) );
-            return new InstrumentState<decimal>( meter, instrument, ++_currentInstrumentId, typeName, "decimal", tags, b );
-
-            static void Validate( ref StringBuilder? error,
-                                  StringBuilder warning,
-                                  Instrument instrument,
-                                  out string typeName,
-                                  out Type measureType,
-                                  out ImmutableArray<KeyValuePair<string,object?>> tags )
-            {
-                if( instrument.Name.Length > 255
-                    || !InstrumentNameRegex().IsMatch( instrument.Name ) )
-                {
-                    AddErrorOrWarning( ref error,
-                              $"Instrument '{instrument.Name}'",
-                              $"Name must follow https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax." );
-                }
-                tags = instrument.Tags != null
-                            ? ValidateTags( ref error, warning, instrument.Tags, () => $"Instrument '{instrument.Name}'" )
-                            : [];
-                var t = instrument.GetType();
-                bool valid = t.IsGenericType && !t.IsGenericTypeDefinition && t.Namespace == "System.Diagnostics.Metrics";
-                if( !valid )
-                {
-                    AddErrorOrWarning( ref error,
-                              $"Instrument '{instrument.Name}'",
-                              $"Invalid instrument type '{t}'." );
-                    typeName = "";
-                    measureType = typeof( void );
-                }
-                else
-                {
-                    typeName = t.Name.Substring( 0, t.Name.IndexOf( '`' ) );
-                    Throw.CheckState( instrument.IsObservable == typeName.StartsWith( "Observable" ) );
-                    if( instrument.IsObservable ) typeName = typeName.Substring( 10 );
-                    measureType = t.GenericTypeArguments[0];
-                }
-                // https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-unit
-                if( instrument.Unit != null && instrument.Unit.Length > 63 )
-                {
-                    AddErrorOrWarning( ref error, $"Instrument '{instrument.Name}'", $"Units '{instrument.Unit}' cannot be longer than 63 characters." );
-                }
-            }
+            return new InstrumentState<decimal>( meter, instrument, ++_currentInstrumentId, typeName, "decimal", tags );
 
         }
 

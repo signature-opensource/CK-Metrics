@@ -16,9 +16,8 @@ public static partial class DotNetMetrics
                                   int id,
                                   string typeName,
                                   string measureTypeName,
-                                  System.Collections.Immutable.ImmutableArray<KeyValuePair<string, object?>> tags,
-                                  StringBuilder b )
-            : base( meter, instrument, id, typeName, measureTypeName, tags, b )
+                                  System.Collections.Immutable.ImmutableArray<KeyValuePair<string, object?>> tags )
+            : base( meter, instrument, id, typeName, measureTypeName, tags )
         {
             Throw.DebugAssert( TypeExtensions.TypeAliases[typeof( T )] == measureTypeName );
         }
@@ -33,11 +32,11 @@ public static partial class DotNetMetrics
             var text = $"M:{_sInstrumentId}:{measurement}";
             if( !tags.IsEmpty )
             {
-                var b = new StringBuilder( text );
-                StringWriter? w = null;
-                b.Append( ":[" );
-                WriteTags( b, ref w, tags );
-                text = b.Append( ']' ).ToString();
+                SafeWriter w = new SafeWriter();
+                w.Append( text );
+                w.Append( ':' );
+                WriteTags( ref w, tags );
+                text = w.ToString();
             }
             SendMetricLog( text );
         }

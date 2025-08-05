@@ -5,7 +5,29 @@ using System.Runtime.CompilerServices;
 
 namespace CK.Metrics;
 
-public static partial class DotNetMetrics
+public static partial class DotNetMetrics // Extensions
+{
+    /// <summary>
+    /// Gets the <see cref="MeterInfo"/> associated to this <see cref="Meter"/>.
+    /// This returns <see cref="MeterInfo.Missing"/> if the Meter is not yet registered in
+    /// <see cref="DotNetMetrics"/> because it has no instruments.
+    /// </summary>
+    /// <param name="meter">This meter.</param>
+    /// <returns>The associated MeterInfo or <see cref="MeterInfo.Missing"/> if <paramref name="meter"/> is not yet registered.</returns>
+    public static MeterInfo GetMeterInfo( this Meter meter )
+    {
+        MeterState? state;
+        lock( _meters )
+        {
+            state = _meters.GetValueOrDefault( meter );
+        }
+        return state != null ? state.Info : MeterInfo.Missing;
+    }
+
+}
+
+
+public static partial class DotNetMetrics // DefaultConfigure
 {
     /// <summary>
     /// Configures an instrument if it has no existing matching configuration in last applied <see cref="MetricsConfiguration"/>.

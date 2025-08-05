@@ -1,8 +1,9 @@
 using CK.Core;
-using CK.Metrics;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
-namespace CK.Monitoring.Metrics;
+namespace CK.Metrics;
 
 sealed class InstanceTracker<T> where T : class, ITrackedMetricsInfo
 {
