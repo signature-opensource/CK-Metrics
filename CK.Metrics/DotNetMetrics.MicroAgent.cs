@@ -56,12 +56,12 @@ public static partial class DotNetMetrics
                             }
                             else
                             {
-                                monitor.Debug( $"Skipped DefaultConfigure for instrument '{iState.Info.FullName}' as it is already configured." );
+                                monitor.Debug( _tag, $"Skipped DefaultConfigure for instrument '{iState.Info.FullName}' as it is already configured." );
                             }
                         }
                         else
                         {
-                            monitor.Warn( ActivityMonitor.Tags.ToBeInvestigated,
+                            monitor.Warn( ActivityMonitor.Tags.ToBeInvestigated | _tag,
                                           $"'{nameof( DefaultConfigure )}' method has been called on a non registered instrument." );
                         }
                         break;

@@ -225,7 +225,7 @@ public static partial class DotNetMetrics
                 return instrument.SetConfiguration( monitor, _listener, c, false );
             }
         }
-        monitor.Debug( $"No matching configuration for {(instrument.IsEnabled ? "en" : "dis")}abled instrument '{instrument.Info.FullName}'." );
+        monitor.Debug( _tag, $"No matching configuration for {(instrument.IsEnabled ? "en" : "dis")}abled instrument '{instrument.Info.FullName}'." );
         return false;
     }
 

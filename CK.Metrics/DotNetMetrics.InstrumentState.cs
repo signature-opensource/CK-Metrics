@@ -42,7 +42,7 @@ public static partial class DotNetMetrics
             {
                 Throw.DebugAssert( "DefaultConfigure cannot be BasicDisabled and this is called only if the current configuration is BasicDisabled",
                                    !isDefaultConfigure );
-                monitor.Debug( $"Unchanged configuration for {(_enabled ? "en" : "dis")}abled instrument '{_info.FullName}'." );
+                monitor.Debug( _tag, $"Unchanged configuration for {(_enabled ? "en" : "dis")}abled instrument '{_info.FullName}'." );
                 return false;
             }
             bool? mustEnable = null;
@@ -55,11 +55,11 @@ public static partial class DotNetMetrics
                     {
                         if( isDefaultConfigure )
                         {
-                            monitor.Trace( $"Instrument '{_info.FullName}' is enabled and configured by DefaultConfigure." );
+                            monitor.Trace( _tag, $"Instrument '{_info.FullName}' is enabled and configured by DefaultConfigure." );
                         }
                         else
                         {
-                            monitor.Trace( $"Enabling and reconfiguring instrument '{_info.FullName}'." );
+                            monitor.Trace( _tag, $"Enabling and reconfiguring instrument '{_info.FullName}'." );
                         }
                         mustEnable = true;
                     }
@@ -69,7 +69,7 @@ public static partial class DotNetMetrics
                         _expectOnMeasurementsCompleted = true;
                         Throw.DebugAssert( "This is called only if the current configuration is BasicDisabled",
                                            !isDefaultConfigure );
-                        monitor.Trace( $"Disabling and reconfiguring instrument '{_info.FullName}'." );
+                        monitor.Trace( _tag, $"Disabling and reconfiguring instrument '{_info.FullName}'." );
                     }
                     _enabled = newEnable;
                 }
@@ -78,11 +78,11 @@ public static partial class DotNetMetrics
                     if( isDefaultConfigure )
                     {
                         Throw.DebugAssert( !_enabled );
-                        monitor.Trace( $"Applied DefaultConfigure to disabled instrument '{_info.FullName}'." );
+                        monitor.Trace( _tag, $"Applied DefaultConfigure to disabled instrument '{_info.FullName}'." );
                     }
                     else
                     {
-                        monitor.Debug( $"Reconfiguring {(_enabled ? "en" : "dis")}abled instrument '{_info.FullName}'." );
+                        monitor.Debug( _tag, $"Reconfiguring {(_enabled ? "en" : "dis")}abled instrument '{_info.FullName}'." );
                     }
                 }
                 _info.Configuration = configuration;

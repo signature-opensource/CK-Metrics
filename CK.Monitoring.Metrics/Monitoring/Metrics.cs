@@ -8,14 +8,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CK.Monitoring.Metrics;
+namespace CK.Monitoring; 
 
-public class GrandOutputMetricsHandler : IGrandOutputHandler
+public class Metrics : IGrandOutputHandler
 {
     readonly IdentityCard _identity;
-    GrandOutputMetricsHandlerConfiguration _configuration;
+    MetricsConfiguration _configuration;
 
-    public GrandOutputMetricsHandler( GrandOutputMetricsHandlerConfiguration configuration, IdentityCard identity )
+    public Metrics( MetricsConfiguration configuration, IdentityCard identity )
     {
         _configuration = configuration;
         _identity = identity;
@@ -23,7 +23,7 @@ public class GrandOutputMetricsHandler : IGrandOutputHandler
 
     public ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor monitor, IHandlerConfiguration c )
     {
-        if( c is GrandOutputMetricsHandlerConfiguration configuration )
+        if( c is MetricsConfiguration configuration )
         {
             return ValueTask.FromResult( true );
         }
@@ -45,7 +45,8 @@ public class GrandOutputMetricsHandler : IGrandOutputHandler
         if( logEvent.MonitorId == ActivityMonitor.StaticLogMonitorUniqueId
             && logEvent.Tags.Overlaps( DotNetMetrics.MetricsTag ) )
         {
-            
+            // (DateTimeStamp,Text).
+
         }
         return default;
     }

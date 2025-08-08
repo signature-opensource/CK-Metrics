@@ -49,6 +49,7 @@ public sealed class InstrumentConfiguration : IEquatable<InstrumentConfiguration
     public bool Enabled => _enabled;
 
     //public LocalAggregateKind AggregateKind => _aggregateKind;
+    //public int LocalAggregateWindowMs => _localAggregateWindowMs;
 
     /// <summary>
     /// Gets the Json description.
