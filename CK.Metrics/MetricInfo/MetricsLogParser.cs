@@ -118,7 +118,7 @@ public readonly struct MetricsLogParser
             }
             if( s.StartsWith( DotNetMetrics._instrumentConfigurationPrefix ) )
             {
-                return new MetricsLogParser( text, MetricsLogKind.NewInstrument );
+                return new MetricsLogParser( text, MetricsLogKind.InstrumentConfiguration );
             }
             if( s.StartsWith( DotNetMetrics._measurePrefix ) )
             {
