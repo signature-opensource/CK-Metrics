@@ -51,14 +51,17 @@ public class MetricsHandlerTests
         // +IConfig,
         // ... (measures come here)
         // -Meter
+        const int meterCount = 21;
         const int measureCount = 21;
-        int totalEntryCount = measureCount + 4;
-        using( var m = new Meter( "test.meter", "1.0" ) )
+        int totalEntryCount = meterCount * ( measureCount + 4 );
+
+        for( int i = 0; i < meterCount; i++ )
         {
-            var gauge = m.CreateGauge<int>( "test.instrument" );
-            for( int i = 0; i < measureCount; i++ )
+            using var m = new Meter( $"test.meter{i}", "1.0" );
+            var gauge = m.CreateGauge<int>( $"test.instrument{i}" );
+            for( int j = 0; j < measureCount; j++ )
             {
-                gauge.Record( i, new KeyValuePair<string, object?>( "a", "b" + i ) );
+                gauge.Record( j, new KeyValuePair<string, object?>( "a", "b" + j ) );
             }
         }
 
@@ -80,19 +83,23 @@ public class MetricsHandlerTests
         }
 
         // Check entries
-        dispatcher.NewMeters.Count.ShouldBe( 1 );
-        dispatcher.Instruments.Count.ShouldBe( 1 );
-        dispatcher.Measures.Count.ShouldBe( measureCount );
+        dispatcher.NewMeters.Count.ShouldBe( meterCount );
+        dispatcher.Instruments.Count.ShouldBe( meterCount );
+        dispatcher.Measures.Count.ShouldBe( meterCount * measureCount );
+        dispatcher.DisposedMeters.Count.ShouldBe( meterCount );
 
-        for( int i = 0; i < measureCount; i++ )
+        for( int i = 0; i < meterCount; i++ )
         {
-            var item = dispatcher.Measures[i];
-            TestHelper.Monitor.Info( item.measure.Measure.ToString() );
-            item.measure.Measure.ToString().ShouldBe( i.ToString() );
-            item.measure.Tags.ToString().ShouldBe( @$"""a"",""b{i}""" );
+            for( int j = 0; j < measureCount; j++ )
+            {
+                int idx = i * measureCount + j;
+                var item = dispatcher.Measures[idx];
+                item.instrument.FullName.ShouldBe( $"test.meter{i}/test.instrument{i}" );
+                item.measure.Measure.ToString().ShouldBe( j.ToString() );
+                item.measure.Tags.ToString().ShouldBe( @$"""a"",""b{j}""" );
+            }
         }
 
-        dispatcher.DisposedMeters.Count.ShouldBe( 1 );
     }
 
     private string PrepareFasterLogDir()
