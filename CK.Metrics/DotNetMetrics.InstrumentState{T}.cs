@@ -24,17 +24,17 @@ public static partial class DotNetMetrics
 
         protected override void OnConfigurationChanged( IActivityMonitor monitor, InstrumentConfiguration configuration )
         {
-            
+
         }
 
         internal void HandleMeasure( T measurement, ReadOnlySpan<KeyValuePair<string, object?>> tags )
         {
-            var text = $"M:{_sInstrumentId}:{measurement}";
+            var text = $"M:{_sInstrumentId},{measurement}";
             if( !tags.IsEmpty )
             {
                 SafeWriter w = new SafeWriter();
                 w.Append( text );
-                w.Append( ':' );
+                w.Append( ',' );
                 WriteTags( ref w, tags );
                 text = w.ToString();
             }

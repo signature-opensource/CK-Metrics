@@ -48,21 +48,22 @@ public class MetricsHandlerTests
         } );
 
         // In addition to the measures, there are 4 entries: +Meter, +Instrument, +IConfig, -Meter
-        int measureCount = 1;
+        int measureCount = 11;
         int totalEntryCount = measureCount + 4;
         using( var m = new Meter( "test.meter", "1.0" ) )
         {
-            var counter = m.CreateCounter<int>( "test.instrument" );
+            var gauge = m.CreateGauge<int>( "test.instrument" );
 
             // Force-wait for MicroAgent by sending a GetAvailableMetrics command to it.
             // Remove the below line, and the Instruments won't have a listener by the time they start measuring,
             // and this test will time out. :(
             // TODO: Find a way to wait for the MicroAgent's configuration.
+            // TODO: Race condition: InstrumentsPublished sends InstrumentState on MicroAgent and does not wait for it
             await DotNetMetrics.GetAvailableMetricsAsync();
 
             for( int i = 0; i < measureCount; i++ )
             {
-                counter.Add( 1 );
+                gauge.Record( i, new KeyValuePair<string, object?>( "a", "b" + i ) );
             }
         }
 
@@ -79,6 +80,7 @@ public class MetricsHandlerTests
         {
             var dateTime = DateTime.FromBinary( BitConverter.ToInt64( entry, 0 ) );
             var text = System.Text.Encoding.ASCII.GetString( entry.AsSpan( sizeof(long) ) );
+            monitor.Info( $"Received after FasterLog: {text} @ {dateTime:O}" );
             dispatcher.Add( monitor, dateTime, text );
         }
 
@@ -86,6 +88,15 @@ public class MetricsHandlerTests
         dispatcher.NewMeters.Count.ShouldBe( 1 );
         dispatcher.Instruments.Count.ShouldBe( 1 );
         dispatcher.Measures.Count.ShouldBe( measureCount );
+
+        for( int i = 0; i < measureCount; i++ )
+        {
+            var item = dispatcher.Measures[i];
+            TestHelper.Monitor.Info( item.measure.Measure.ToString() );
+            item.measure.Measure.ToString().ShouldBe( i.ToString() );
+            item.measure.Tags.ToString().ShouldBe( @$"""a"",""b{i}""" );
+        }
+
         dispatcher.DisposedMeters.Count.ShouldBe( 1 );
     }
 
