@@ -147,6 +147,17 @@ public static partial class DotNetMetrics
     /// <param name="configuration">The configuration to apply.</param>
     public static void ApplyConfiguration( MetricsConfiguration configuration ) => MicroAgent.Push( configuration );
 
+    /// <summary>
+    /// Applies a <see cref="MetricsConfiguration"/>, waits for its application and returns the <see cref="DotNetMetricsInfo"/>.
+    /// </summary>
+    /// <param name="configuration">The configuration to apply.</param>
+    /// <returns>The configuration.</returns>
+    public static Task<DotNetMetricsInfo> ApplyConfigurationAsync( MetricsConfiguration configuration )
+    {
+        MicroAgent.Push( configuration );
+        return GetAvailableMetricsAsync();
+    }
+
     static void OnInstrumentPublished( Instrument instrument, MeterListener listener )
     {
         Throw.DebugAssert( !_instruments.ContainsKey( instrument ) );
