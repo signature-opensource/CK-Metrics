@@ -8,6 +8,8 @@ namespace CK.Metrics;
 
 public static partial class DotNetMetrics
 {
+    sealed class Lock { }
+
     static class MicroAgent
     {
         readonly static Channel<object?> _channel;
@@ -25,6 +27,18 @@ public static partial class DotNetMetrics
         }
 
         internal static void Push( object o ) => _channel.Writer.TryWrite( o );
+
+        internal static void SyncWait()
+        {
+            var l = new Lock();
+            lock( l )
+            {
+                if( _channel.Writer.TryWrite( l ) )
+                {
+                    System.Threading.Monitor.Wait( l );
+                }
+            }
+        }
 
         static async Task RunLoopAsync()
         {
@@ -66,7 +80,13 @@ public static partial class DotNetMetrics
                         }
                         break;
                     case TaskCompletionSource<DotNetMetricsInfo> tc:
-                        tc.SetResult( DoGetAvailableMetrics() );
+                        tc.SetResult( DoGetConfiguration() );
+                        break;
+                    case Lock:
+                        lock( e )
+                        {
+                            System.Threading.Monitor.Pulse( e );
+                        }
                         break;
                 }
             }

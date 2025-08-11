@@ -35,7 +35,7 @@ public class WriteParseTests
              .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
             WriteAndReadMeter( m );
         }
-        DotNetMetrics.GetAvailableMetrics().Instruments.ShouldBeEmpty();
+        DotNetMetrics.GetConfiguration().Instruments.ShouldBeEmpty();
     }
 
     static void WriteAndReadMeter( Meter m )
@@ -90,13 +90,13 @@ public class WriteParseTests
 
             WriteAndReadMeter( m );
 
-            var instruments = DotNetMetrics.GetAvailableMetrics().Instruments;
+            var instruments = DotNetMetrics.GetConfiguration().Instruments;
             instruments.Count.ShouldBe( 1 );
 
             WriteAndReadInstrument( instruments[0] );
 
         }
-        DotNetMetrics.GetAvailableMetrics().Instruments.ShouldBeEmpty();
+        DotNetMetrics.GetConfiguration().Instruments.ShouldBeEmpty();
     }
 
     static void WriteAndReadInstrument( FullInstrumentInfo full )

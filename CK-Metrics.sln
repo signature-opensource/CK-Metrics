@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Metrics.Tests", "Tests\C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Monitoring.Metrics", "CK.Monitoring.Metrics\CK.Monitoring.Metrics.csproj", "{B0073C3A-29F2-4DBE-98A3-9F6FBD0C116E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Monitoring.Metrics.Tests", "Tests\CK.Monitoring.Metrics.Tests\CK.Monitoring.Metrics.Tests.csproj", "{3CA42D65-154A-4A13-BA76-95027908E637}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,12 +31,17 @@ Global
 		{B0073C3A-29F2-4DBE-98A3-9F6FBD0C116E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B0073C3A-29F2-4DBE-98A3-9F6FBD0C116E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B0073C3A-29F2-4DBE-98A3-9F6FBD0C116E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3CA42D65-154A-4A13-BA76-95027908E637}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3CA42D65-154A-4A13-BA76-95027908E637}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3CA42D65-154A-4A13-BA76-95027908E637}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3CA42D65-154A-4A13-BA76-95027908E637}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{3CA42D65-154A-4A13-BA76-95027908E637} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C6EC3465-5D6B-4745-8A44-EFB449CDAF04}

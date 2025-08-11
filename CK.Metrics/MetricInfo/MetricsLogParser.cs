@@ -66,6 +66,7 @@ public readonly struct MetricsLogParser
         if( Kind == MetricsLogKind.Measure )
         {
             var head = Text.AsSpan( DotNetMetrics._measurePrefix.Length );
+            int len = head.Length;
             if( head.TryMatchInteger( out int instrumentId )
                 && instrumentId >= 0
                 && head.TryMatch( ',' ) )
@@ -73,8 +74,8 @@ public readonly struct MetricsLogParser
                 var mH = head;
                 if( head.TrySkipFloatingNumber() )
                 {
-                    int mStart = mH.Length + DotNetMetrics._measurePrefix.Length;
-                    int mLength = head.Length - mH.Length;
+                    int mStart = len - mH.Length + DotNetMetrics._measurePrefix.Length;
+                    int mLength = mH.Length - head.Length;
                     if( head.Length == 0 )
                     {
                         m = new ParsedMeasureLog( Text, instrumentId, mStart, mLength, 0 );
@@ -87,7 +88,7 @@ public readonly struct MetricsLogParser
                             m = new ParsedMeasureLog( Text, instrumentId, mStart, mLength, 0 );
                             return true;
                         }
-                        m = new ParsedMeasureLog( Text, instrumentId, mStart, mLength, head.Length - 1 + DotNetMetrics._measurePrefix.Length );
+                        m = new ParsedMeasureLog( Text, instrumentId, mStart, mLength, len - head.Length + DotNetMetrics._measurePrefix.Length );
                         return true;
                     }
                 }
@@ -118,7 +119,7 @@ public readonly struct MetricsLogParser
             }
             if( s.StartsWith( DotNetMetrics._instrumentConfigurationPrefix ) )
             {
-                return new MetricsLogParser( text, MetricsLogKind.NewInstrument );
+                return new MetricsLogParser( text, MetricsLogKind.InstrumentConfiguration );
             }
             if( s.StartsWith( DotNetMetrics._measurePrefix ) )
             {

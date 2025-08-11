@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="CK.Monitoring" Version="24.0.1--0014-develop" />
+    <PackageReference Include="Microsoft.FASTER.Core" Version="2.6.5"/>
   </ItemGroup>
 
   <ItemGroup>
