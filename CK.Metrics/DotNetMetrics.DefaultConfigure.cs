@@ -82,6 +82,7 @@ public static partial class DotNetMetrics // DefaultConfigure
     {
         Throw.CheckArgument( configuration is not null && configuration.Equals( InstrumentConfiguration.BasicDisabled ) is false );
         MicroAgent.Push( (instrument, configuration) );
+        MicroAgent.SyncWait();
         return instrument;
     }
 

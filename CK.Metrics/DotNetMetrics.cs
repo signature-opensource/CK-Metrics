@@ -105,7 +105,7 @@ public static partial class DotNetMetrics
     /// <para>
     /// This is a thread-safe snapshot of the metrics regardless of any concurrent
     /// configurations being applied.
-    /// Use <see cref="GetConfigurationAsync"/> instead to obtain a configured state after a <see cref="ApplyConfigurationAsync(MetricsConfiguration)"/>.
+    /// Use <see cref="GetConfigurationAsync"/> instead to obtain a configured state after a <see cref="ApplyAndGetConfigurationAsync(MetricsConfiguration)"/>.
     /// </para>
     /// </summary>
     /// <returns>A <see cref="DotNetMetricsInfo"/>.</returns>
@@ -142,17 +142,22 @@ public static partial class DotNetMetrics
     }
 
     /// <summary>
-    /// Applies a <see cref="MetricsConfiguration"/>.
+    /// Applies a <see cref="MetricsConfiguration"/>, optionally waiting for its application.
     /// </summary>
     /// <param name="configuration">The configuration to apply.</param>
-    public static void ApplyConfiguration( MetricsConfiguration configuration ) => MicroAgent.Push( configuration );
+    /// <param name="waitForApplication">True to block until the configuration is applied.</param>
+    public static void ApplyConfiguration( MetricsConfiguration configuration, bool waitForApplication = false )
+    {
+        MicroAgent.Push( configuration );
+        if( waitForApplication ) MicroAgent.SyncWait();
+    }
 
     /// <summary>
     /// Applies a <see cref="MetricsConfiguration"/>, waits for its application and returns the <see cref="DotNetMetricsInfo"/>.
     /// </summary>
     /// <param name="configuration">The configuration to apply.</param>
     /// <returns>The configuration.</returns>
-    public static Task<DotNetMetricsInfo> ApplyConfigurationAsync( MetricsConfiguration configuration )
+    public static Task<DotNetMetricsInfo> ApplyAndGetConfigurationAsync( MetricsConfiguration configuration )
     {
         MicroAgent.Push( configuration );
         return GetConfigurationAsync();
@@ -191,6 +196,7 @@ public static partial class DotNetMetrics
         SendMetricLog( _newInstrumentPrefix + iState.Info.Info.JsonDescription );
         // OnInstrumentPublished.
         MicroAgent.Push( iState );
+        MicroAgent.SyncWait();
     }
 
     static void OnMeasurementsCompleted( Instrument instrument, object? state )

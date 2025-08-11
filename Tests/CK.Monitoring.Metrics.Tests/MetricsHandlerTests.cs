@@ -36,8 +36,6 @@ public class MetricsHandlerTests
             }
         } );
 
-        // ApplyConfiguration sends the configuration to MicroAgent without waiting for it. :(
-        // TODO: Find a way to wait for the MicroAgent's configuration.
         DotNetMetrics.ApplyConfiguration( new MetricsConfiguration
         {
             AutoObservableTimer = 50,
@@ -45,22 +43,19 @@ public class MetricsHandlerTests
             {
                 (new InstrumentMatcher( "*" ), InstrumentConfiguration.BasicEnabled)
             }
-        } );
+        }, waitForApplication: true );
 
-        // In addition to the measures, there are 4 entries: +Meter, +Instrument, +IConfig, -Meter
-        int measureCount = 11;
+        // In addition to the measures, there are 4 entries:
+        // +Meter,
+        // +Instrument,
+        // +IConfig,
+        // ... (measures come here)
+        // -Meter
+        const int measureCount = 21;
         int totalEntryCount = measureCount + 4;
         using( var m = new Meter( "test.meter", "1.0" ) )
         {
             var gauge = m.CreateGauge<int>( "test.instrument" );
-
-            // Force-wait for MicroAgent by sending a GetAvailableMetrics command to it.
-            // Remove the below line, and the Instruments won't have a listener by the time they start measuring,
-            // and this test will time out. :(
-            // TODO: Find a way to wait for the MicroAgent's configuration.
-            // TODO: Race condition: InstrumentsPublished sends InstrumentState on MicroAgent and does not wait for it
-            await DotNetMetrics.GetConfigurationAsync();
-
             for( int i = 0; i < measureCount; i++ )
             {
                 gauge.Record( i, new KeyValuePair<string, object?>( "a", "b" + i ) );
