@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.IO;
@@ -59,7 +59,7 @@ public class MetricsHandlerTests
             // and this test will time out. :(
             // TODO: Find a way to wait for the MicroAgent's configuration.
             // TODO: Race condition: InstrumentsPublished sends InstrumentState on MicroAgent and does not wait for it
-            await DotNetMetrics.GetAvailableMetricsAsync();
+            await DotNetMetrics.GetConfigurationAsync();
 
             for( int i = 0; i < measureCount; i++ )
             {

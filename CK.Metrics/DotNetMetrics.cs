@@ -105,13 +105,13 @@ public static partial class DotNetMetrics
     /// <para>
     /// This is a thread-safe snapshot of the metrics regardless of any concurrent
     /// configurations being applied.
-    /// Use <see cref="GetAvailableMetricsAsync"/> instead to obtain a fully configured state.
+    /// Use <see cref="GetConfigurationAsync"/> instead to obtain a configured state after a <see cref="ApplyConfigurationAsync(MetricsConfiguration)"/>.
     /// </para>
     /// </summary>
     /// <returns>A <see cref="DotNetMetricsInfo"/>.</returns>
-    public static DotNetMetricsInfo GetAvailableMetrics() => DoGetAvailableMetrics();
+    public static DotNetMetricsInfo GetConfiguration() => DoGetConfiguration();
 
-    static DotNetMetricsInfo DoGetAvailableMetrics()
+    static DotNetMetricsInfo DoGetConfiguration()
     {
         var result = new List<FullInstrumentInfo>();
         MeterState[] meters;
@@ -129,12 +129,12 @@ public static partial class DotNetMetrics
     /// Gets the currently available instruments and their configuration.
     /// <para>
     /// This captures a configured state: no configuration are concurrently being applied.
-    /// This is typically useful in tests but in prodution, the synchronous <see cref="GetAvailableMetrics"/>
+    /// This is typically useful in tests but in prodution, the synchronous <see cref="GetConfiguration"/>
     /// can be called: a "half applied" configuration is a configuration...
     /// </para>
     /// </summary>
     /// <returns>A <see cref="DotNetMetricsInfo"/>.</returns>
-    public static Task<DotNetMetricsInfo> GetAvailableMetricsAsync()
+    public static Task<DotNetMetricsInfo> GetConfigurationAsync()
     {
         var tc = new TaskCompletionSource<DotNetMetricsInfo>( TaskCreationOptions.RunContinuationsAsynchronously );
         MicroAgent.Push( tc );
@@ -155,7 +155,7 @@ public static partial class DotNetMetrics
     public static Task<DotNetMetricsInfo> ApplyConfigurationAsync( MetricsConfiguration configuration )
     {
         MicroAgent.Push( configuration );
-        return GetAvailableMetricsAsync();
+        return GetConfigurationAsync();
     }
 
     static void OnInstrumentPublished( Instrument instrument, MeterListener listener )

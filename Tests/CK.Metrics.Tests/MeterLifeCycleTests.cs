@@ -75,7 +75,7 @@ public class MeterLifeCycleTests
             var inst = meter.CreateCounter<int>( "hat_sold" )
                             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
 
-            var metrics = await DotNetMetrics.GetAvailableMetricsAsync();
+            var metrics = await DotNetMetrics.GetConfigurationAsync();
             metrics.Instruments.Single().Configuration.Enabled.ShouldBeTrue();
 
             var disposer = Task.Run( async () =>
@@ -92,7 +92,7 @@ public class MeterLifeCycleTests
                 Thread.Sleep( 10 );
             }
 #pragma warning disable VSTHRD103 // Call async methods when in an async method
-            metrics = DotNetMetrics.GetAvailableMetrics();
+            metrics = DotNetMetrics.GetConfiguration();
 #pragma warning restore VSTHRD103 
             metrics.Instruments.ShouldBeEmpty();
         }

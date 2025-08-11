@@ -66,7 +66,7 @@ public static partial class DotNetMetrics
                         }
                         break;
                     case TaskCompletionSource<DotNetMetricsInfo> tc:
-                        tc.SetResult( DoGetAvailableMetrics() );
+                        tc.SetResult( DoGetConfiguration() );
                         break;
                 }
             }
