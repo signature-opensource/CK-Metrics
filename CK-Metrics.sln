@@ -1,0 +1,62 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36221.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Metrics", "CK.Metrics\CK.Metrics.csproj", "{CFFF50E2-E73A-492A-ABEF-60B5AD06A187}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Metrics.Tests", "Tests\CK.Metrics.Tests\CK.Metrics.Tests.csproj", "{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Monitoring.Metrics", "CK.Monitoring.Metrics\CK.Monitoring.Metrics.csproj", "{B0073C3A-29F2-4DBE-98A3-9F6FBD0C116E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.Monitoring.Metrics.Tests", "Tests\CK.Monitoring.Metrics.Tests\CK.Monitoring.Metrics.Tests.csproj", "{3CA42D65-154A-4A13-BA76-95027908E637}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{58A2043C-D141-4EEA-837D-D67703AD4EFF}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		appveyor.yml = appveyor.yml
+		NuGet.config = NuGet.config
+		RepositoryInfo.xml = RepositoryInfo.xml
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeCakeBuilder", "CodeCakeBuilder\CodeCakeBuilder.csproj", "{484E57FF-04CA-282B-DF8A-95F0C8587F63}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CFFF50E2-E73A-492A-ABEF-60B5AD06A187}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CFFF50E2-E73A-492A-ABEF-60B5AD06A187}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CFFF50E2-E73A-492A-ABEF-60B5AD06A187}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CFFF50E2-E73A-492A-ABEF-60B5AD06A187}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B0073C3A-29F2-4DBE-98A3-9F6FBD0C116E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0073C3A-29F2-4DBE-98A3-9F6FBD0C116E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0073C3A-29F2-4DBE-98A3-9F6FBD0C116E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0073C3A-29F2-4DBE-98A3-9F6FBD0C116E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3CA42D65-154A-4A13-BA76-95027908E637}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3CA42D65-154A-4A13-BA76-95027908E637}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3CA42D65-154A-4A13-BA76-95027908E637}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3CA42D65-154A-4A13-BA76-95027908E637}.Release|Any CPU.Build.0 = Release|Any CPU
+		{484E57FF-04CA-282B-DF8A-95F0C8587F63}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{484E57FF-04CA-282B-DF8A-95F0C8587F63}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{484E57FF-04CA-282B-DF8A-95F0C8587F63}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{484E57FF-04CA-282B-DF8A-95F0C8587F63}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{71997E5F-C20C-246E-8E0A-F3F180DE7BE3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{3CA42D65-154A-4A13-BA76-95027908E637} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C6EC3465-5D6B-4745-8A44-EFB449CDAF04}
+	EndGlobalSection
+EndGlobal
