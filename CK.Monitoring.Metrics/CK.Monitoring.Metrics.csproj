@@ -1,18 +1,14 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="CK.Monitoring" Version="24.0.1--0014-develop" />
-    <PackageReference Include="Microsoft.FASTER.Core" Version="2.6.5"/>
+    <PackageReference Include="CK.Monitoring" Version="24.0.1--0029-develop" />
+    <PackageReference Include="Microsoft.FASTER.Core" Version="2.6.5" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\CK.Metrics\CK.Metrics.csproj" />
   </ItemGroup>
-
 </Project>
