@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Monitoring" Version="25.0.0" />
+    <PackageReference Include="CK.Monitoring" Version="25.0.1--0003-develop" />
     <PackageReference Include="Microsoft.FASTER.Core" Version="2.6.5" />
   </ItemGroup>
   <ItemGroup>
