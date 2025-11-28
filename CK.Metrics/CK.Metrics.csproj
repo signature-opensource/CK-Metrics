@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="25.0.3--0001-develop" />
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="25.0.2" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.7" />
   </ItemGroup>
 </Project>
