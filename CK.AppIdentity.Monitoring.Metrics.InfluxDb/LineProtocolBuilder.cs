@@ -19,6 +19,7 @@ public sealed class LineProtocolBuilder
     readonly string _domain;
     readonly string _environment;
     readonly string _party;
+    readonly IReadOnlyDictionary<string, string>? _staticTags;
 
     /// <summary>
     /// Initializes a new <see cref="LineProtocolBuilder"/> with AppIdentity context.
@@ -26,11 +27,13 @@ public sealed class LineProtocolBuilder
     /// <param name="domain">The AppIdentity domain name.</param>
     /// <param name="environment">The AppIdentity environment name.</param>
     /// <param name="party">The AppIdentity party name.</param>
-    public LineProtocolBuilder( string domain, string environment, string party )
+    /// <param name="staticTags">Optional static tags to include in every measurement.</param>
+    public LineProtocolBuilder( string domain, string environment, string party, IReadOnlyDictionary<string, string>? staticTags = null )
     {
         _domain = domain;
         _environment = environment;
         _party = party;
+        _staticTags = staticTags;
     }
 
     /// <summary>
@@ -68,6 +71,18 @@ public sealed class LineProtocolBuilder
         EscapeTagValue( _buffer, _party );
         _buffer.Append( ",meter=" );
         EscapeTagValue( _buffer, instrument.MeterInfo.Name );
+
+        // Static tags from configuration
+        if( _staticTags != null )
+        {
+            foreach( var (key, value) in _staticTags )
+            {
+                _buffer.Append( ',' );
+                EscapeTagKey( _buffer, key );
+                _buffer.Append( '=' );
+                EscapeTagValue( _buffer, value );
+            }
+        }
 
         // Measurement tags
         if( measure.TagsLength > 0 )

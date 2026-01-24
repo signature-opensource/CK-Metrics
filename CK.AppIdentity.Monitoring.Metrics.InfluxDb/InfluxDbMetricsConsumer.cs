@@ -44,7 +44,7 @@ public sealed class InfluxDbMetricsConsumer : MetricsConsumerBase
 
         _config = config;
         _httpClient = httpClient ?? new HttpClient();
-        _lineProtocolBuilder = new LineProtocolBuilder( domain, environment, party );
+        _lineProtocolBuilder = new LineProtocolBuilder( domain, environment, party, config.Tags );
         _dispatcher = new InfluxDbMetricsLogDispatcher( this );
         _flushInterval = TimeSpan.FromMilliseconds( config.FlushIntervalMs );
 

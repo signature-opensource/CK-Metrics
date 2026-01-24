@@ -109,6 +109,16 @@ public sealed class InfluxDbMetricsConsumerFeatureDriver : ApplicationIdentityFe
         if( long.TryParse( influxSection["BatchThresholdBytes"], out var batchThresholdBytes ) )
             config.BatchThresholdBytes = batchThresholdBytes;
 
+        // Parse optional static tags (with environment variable expansion)
+        var tagsSection = influxSection.GetSection( "Tags" );
+        if( tagsSection.Exists() )
+        {
+            config.Tags = tagsSection.GetChildren()
+                .ToDictionary(
+                    x => x.Key,
+                    x => Environment.ExpandEnvironmentVariables( x.Value ?? string.Empty ) );
+        }
+
         // Get consumer name
         var name = influxSection["Name"] ?? DefaultConsumerName;
 

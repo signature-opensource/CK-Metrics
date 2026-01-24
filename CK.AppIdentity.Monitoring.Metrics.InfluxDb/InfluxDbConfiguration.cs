@@ -65,6 +65,16 @@ public sealed class InfluxDbConfiguration
     public long BatchThresholdBytes { get; set; } = 4 * 1024 * 1024;
 
     /// <summary>
+    /// Gets or sets optional static tags to include in every measurement.
+    /// These tags are added alongside the automatic ck_domain, ck_environment, ck_party, and meter tags.
+    /// <para>
+    /// Tag values support environment variable expansion (e.g., "%COMPUTERNAME%", "%USERNAME%")
+    /// when parsed by the feature driver.
+    /// </para>
+    /// </summary>
+    public Dictionary<string, string>? Tags { get; set; }
+
+    /// <summary>
     /// Gets the write API endpoint URL.
     /// </summary>
     public string WriteUrl => $"{ServerUrl.TrimEnd( '/' )}/api/v2/write?org={Uri.EscapeDataString( Org )}&bucket={Uri.EscapeDataString( Bucket )}&precision=ns";

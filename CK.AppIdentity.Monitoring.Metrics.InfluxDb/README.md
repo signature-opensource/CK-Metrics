@@ -45,6 +45,7 @@ Add the InfluxDB consumer configuration to your AppIdentity local configuration:
 | `FlushIntervalMs` | `1000` | Maximum delay between flushes |
 | `RetryDelayMs` | `2000` | Delay before retrying after failure |
 | `BatchThresholdBytes` | `4194304` | Size threshold for batching (4 MiB) |
+| `Tags` | - | Optional static tags added to every measurement. Values support environment variables (e.g., `%COMPUTERNAME%`). |
 
 ## Line Protocol Format
 
@@ -69,6 +70,32 @@ The consumer automatically includes these tags:
 - `meter`: The meter name that owns the instrument
 
 Plus all measurement-specific tags from the metrics entry.
+
+### Static Tags
+
+You can configure static tags that are included in every measurement. This is useful when multiple
+machines share the same domain/party/environment and you need additional discriminators for querying.
+
+Tag values support environment variable expansion using the `%VARIABLE%` syntax:
+
+```json
+"MetricsInfluxDb": {
+  "ServerUrl": "https://influxdb.example.com:8086",
+  "Org": "my-org",
+  "Bucket": "metrics",
+  "Token": "my-api-token",
+  "Tags": {
+    "host": "%COMPUTERNAME%",
+    "user": "%USERNAME%",
+    "region": "eu-west-1"
+  }
+}
+```
+
+These tags appear after the automatic `ck_*` tags in the line protocol:
+```
+http.requests,ck_domain=MyCompany,ck_environment=Production,ck_party=MyApp,meter=System.Net.Http,host=SERVER01,user=john,region=eu-west-1,method=GET value=42 1705329000000000000
+```
 
 ## GrandOutput Handler
 

@@ -309,6 +309,201 @@ public class InfluxDbMetricsConsumerTests
         Assert.That( output, Does.Contain( "requests" ) );
     }
 
+    [Test]
+    public void static_tags_are_included_in_line_protocol()
+    {
+        var staticTags = new Dictionary<string, string>
+        {
+            { "host", "server-01" },
+            { "region", "eu-west-1" }
+        };
+
+        var builder = new LineProtocolBuilder( "TestDomain", "Production", "TestApp", staticTags );
+        var dispatcher = new TestInfluxDbDispatcher( builder );
+
+        var monitor = TestHelper.Monitor;
+        var time = DateTime.UtcNow;
+
+        dispatcher.Add( monitor, time, "+Meter:1,\"test.meter\",\"1.0\",\"\",[]" );
+        dispatcher.Add( monitor, time, "+Instrument:1,1,\"requests\",\"Counter`1\",\"Int64\",false,\"Total requests\",\"\",[]" );
+        dispatcher.Add( monitor, time, "M:1,42.0,[]" );
+
+        var output = builder.ToString();
+
+        Assert.That( output, Does.Contain( "host=server-01" ) );
+        Assert.That( output, Does.Contain( "region=eu-west-1" ) );
+    }
+
+    [Test]
+    public void static_tags_escape_special_characters()
+    {
+        var staticTags = new Dictionary<string, string>
+        {
+            { "tag with space", "value with space" },
+            { "tag,with,comma", "value,with,comma" },
+            { "tag=with=equals", "value=with=equals" },
+            { "tag\\with\\backslash", "value\\with\\backslash" }
+        };
+
+        var builder = new LineProtocolBuilder( "TestDomain", "Production", "TestApp", staticTags );
+        var dispatcher = new TestInfluxDbDispatcher( builder );
+
+        var monitor = TestHelper.Monitor;
+        var time = DateTime.UtcNow;
+
+        dispatcher.Add( monitor, time, "+Meter:1,\"test.meter\",\"1.0\",\"\",[]" );
+        dispatcher.Add( monitor, time, "+Instrument:1,1,\"requests\",\"Counter`1\",\"Int64\",false,\"Total requests\",\"\",[]" );
+        dispatcher.Add( monitor, time, "M:1,42.0,[]" );
+
+        var output = builder.ToString();
+
+        // Spaces, commas, equals, and backslashes should be escaped
+        Assert.That( output, Does.Contain( @"tag\ with\ space=value\ with\ space" ) );
+        Assert.That( output, Does.Contain( @"tag\,with\,comma=value\,with\,comma" ) );
+        Assert.That( output, Does.Contain( @"tag\=with\=equals=value\=with\=equals" ) );
+        Assert.That( output, Does.Contain( @"tag\\with\\backslash=value\\with\\backslash" ) );
+    }
+
+    [Test]
+    public void empty_static_tags_produces_valid_output()
+    {
+        // Test with null
+        var builder1 = new LineProtocolBuilder( "TestDomain", "Production", "TestApp", null );
+        var dispatcher1 = new TestInfluxDbDispatcher( builder1 );
+
+        var monitor = TestHelper.Monitor;
+        var time = DateTime.UtcNow;
+
+        dispatcher1.Add( monitor, time, "+Meter:1,\"test.meter\",\"1.0\",\"\",[]" );
+        dispatcher1.Add( monitor, time, "+Instrument:1,1,\"requests\",\"Counter`1\",\"Int64\",false,\"Total requests\",\"\",[]" );
+        dispatcher1.Add( monitor, time, "M:1,42.0,[]" );
+
+        var output1 = builder1.ToString();
+        Assert.That( output1, Does.Contain( "requests" ) );
+        Assert.That( output1, Does.Contain( "value=42" ) );
+
+        // Test with empty dictionary
+        var builder2 = new LineProtocolBuilder( "TestDomain", "Production", "TestApp", new Dictionary<string, string>() );
+        var dispatcher2 = new TestInfluxDbDispatcher( builder2 );
+
+        dispatcher2.Add( monitor, time, "+Meter:1,\"test.meter\",\"1.0\",\"\",[]" );
+        dispatcher2.Add( monitor, time, "+Instrument:1,1,\"requests\",\"Counter`1\",\"Int64\",false,\"Total requests\",\"\",[]" );
+        dispatcher2.Add( monitor, time, "M:1,42.0,[]" );
+
+        var output2 = builder2.ToString();
+        Assert.That( output2, Does.Contain( "requests" ) );
+        Assert.That( output2, Does.Contain( "value=42" ) );
+    }
+
+    [Test]
+    public void static_tags_appear_after_ck_tags_and_before_measurement_tags()
+    {
+        var staticTags = new Dictionary<string, string>
+        {
+            { "host", "server-01" }
+        };
+
+        var builder = new LineProtocolBuilder( "TestDomain", "Production", "TestApp", staticTags );
+        var dispatcher = new TestInfluxDbDispatcher( builder );
+
+        var monitor = TestHelper.Monitor;
+        var time = DateTime.UtcNow;
+
+        dispatcher.Add( monitor, time, "+Meter:1,\"test.meter\",\"1.0\",\"\",[]" );
+        dispatcher.Add( monitor, time, "+Instrument:1,1,\"requests\",\"Counter`1\",\"Int64\",false,\"Total requests\",\"\",[]" );
+        dispatcher.Add( monitor, time, "M:1,42.0,[\"method\",\"GET\"]" );
+
+        var output = builder.ToString();
+
+        // Find positions to verify ordering
+        var meterPos = output.IndexOf( "meter=test.meter" );
+        var staticTagPos = output.IndexOf( "host=server-01" );
+        var measureTagPos = output.IndexOf( "method=GET" );
+
+        Assert.That( meterPos, Is.GreaterThan( -1 ), "meter tag should exist" );
+        Assert.That( staticTagPos, Is.GreaterThan( -1 ), "static tag should exist" );
+        Assert.That( measureTagPos, Is.GreaterThan( -1 ), "measurement tag should exist" );
+
+        Assert.That( staticTagPos, Is.GreaterThan( meterPos ), "static tag should appear after meter tag" );
+        Assert.That( measureTagPos, Is.GreaterThan( staticTagPos ), "measurement tag should appear after static tag" );
+    }
+
+    [Test]
+    public void static_tags_expand_environment_variables()
+    {
+        // Set a test environment variable
+        var testVarName = "CK_METRICS_TEST_VAR_" + Guid.NewGuid().ToString( "N" )[..8];
+        var testVarValue = "test-value-123";
+        Environment.SetEnvironmentVariable( testVarName, testVarValue );
+
+        try
+        {
+            // Simulate what the feature driver does
+            var rawValue = $"%{testVarName}%";
+            var expandedValue = Environment.ExpandEnvironmentVariables( rawValue );
+
+            Assert.That( expandedValue, Is.EqualTo( testVarValue ) );
+
+            // Use expanded value in static tags
+            var staticTags = new Dictionary<string, string>
+            {
+                { "custom", expandedValue }
+            };
+
+            var builder = new LineProtocolBuilder( "TestDomain", "Production", "TestApp", staticTags );
+            var dispatcher = new TestInfluxDbDispatcher( builder );
+
+            var monitor = TestHelper.Monitor;
+            var time = DateTime.UtcNow;
+
+            dispatcher.Add( monitor, time, "+Meter:1,\"test.meter\",\"1.0\",\"\",[]" );
+            dispatcher.Add( monitor, time, "+Instrument:1,1,\"requests\",\"Counter`1\",\"Int64\",false,\"Total requests\",\"\",[]" );
+            dispatcher.Add( monitor, time, "M:1,42.0,[]" );
+
+            var output = builder.ToString();
+
+            Assert.That( output, Does.Contain( $"custom={testVarValue}" ) );
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable( testVarName, null );
+        }
+    }
+
+    [Test]
+    public void configuration_tags_property_works()
+    {
+        var config = new InfluxDbConfiguration
+        {
+            ServerUrl = "https://influxdb.example.com:8086",
+            Org = "my-org",
+            Bucket = "my-bucket",
+            Tags = new Dictionary<string, string>
+            {
+                { "host", "server-01" },
+                { "region", "eu-west-1" }
+            }
+        };
+
+        Assert.That( config.Tags, Is.Not.Null );
+        Assert.That( config.Tags.Count, Is.EqualTo( 2 ) );
+        Assert.That( config.Tags["host"], Is.EqualTo( "server-01" ) );
+        Assert.That( config.Tags["region"], Is.EqualTo( "eu-west-1" ) );
+    }
+
+    [Test]
+    public void configuration_tags_default_is_null()
+    {
+        var config = new InfluxDbConfiguration
+        {
+            ServerUrl = "https://influxdb.example.com:8086",
+            Org = "my-org",
+            Bucket = "my-bucket"
+        };
+
+        Assert.That( config.Tags, Is.Null );
+    }
+
     static void EnqueueMetricsEntry( FasterLog log, string text )
     {
         var dateTime = DateTime.UtcNow;
