@@ -1,0 +1,225 @@
+using System.Buffers;
+using CK.Core;
+using FASTER.core;
+
+namespace CK.AppIdentity.Monitoring.Metrics;
+
+/// <summary>
+/// Base class for metrics consumers with retry-on-failure semantics.
+/// Uses FasterLog named iterators for persisted progress tracking.
+/// </summary>
+public abstract class MetricsConsumerBase : IMetricsConsumer
+{
+    readonly FasterLog _log;
+    readonly string _name;
+    readonly int _retryDelayMs;
+    readonly long _batchThresholdBytes;
+
+    FasterLogScanIterator? _iterator;
+    Task? _processorTask;
+    CancellationTokenSource? _stopTokenSource;
+
+    /// <summary>
+    /// Initializes a new <see cref="MetricsConsumerBase"/>.
+    /// </summary>
+    /// <param name="log">The FasterLog instance to consume from.</param>
+    /// <param name="name">The unique name for this consumer (max 20 characters).</param>
+    /// <param name="retryDelayMs">Delay in milliseconds before retrying on failure. Defaults to 2000.</param>
+    /// <param name="batchThresholdBytes">Size threshold in bytes for batching entries. Defaults to 2 MiB.</param>
+    protected MetricsConsumerBase(
+        FasterLog log,
+        string name,
+        int retryDelayMs = 2000,
+        long batchThresholdBytes = 2 << 21 )
+    {
+        Throw.CheckNotNullArgument( log );
+        Throw.CheckNotNullOrWhiteSpaceArgument( name );
+        Throw.CheckArgument( name.Length <= 20, "Consumer name must be 20 characters or less." );
+
+        _log = log;
+        _name = name;
+        _retryDelayMs = retryDelayMs;
+        _batchThresholdBytes = batchThresholdBytes;
+    }
+
+    /// <inheritdoc />
+    public string Name => _name;
+
+    /// <inheritdoc />
+    public long CompletedUntilAddress => _iterator?.CompletedUntilAddress ?? 0;
+
+    /// <summary>
+    /// Gets the FasterLog instance this consumer reads from.
+    /// </summary>
+    protected FasterLog Log => _log;
+
+    /// <inheritdoc />
+    public Task StartAsync( IActivityMonitor monitor, CancellationToken ct )
+    {
+        Throw.CheckState( _iterator == null, "Consumer is already started." );
+
+        // Create a named iterator - automatically recovers position from the persisted state.
+        _iterator = _log.Scan( 0, long.MaxValue, name: _name, recover: true );
+        _stopTokenSource = CancellationTokenSource.CreateLinkedTokenSource( ct );
+        _processorTask = Task.Run( () => RunAsync( monitor ), ct );
+
+        return Task.CompletedTask;
+    }
+
+    async Task RunAsync( IActivityMonitor _ )
+    {
+        Throw.DebugAssert( _iterator != null );
+        Throw.DebugAssert( _stopTokenSource != null );
+
+        var ct = _stopTokenSource.Token;
+        var memoryPool = MemoryPool<byte>.Shared;
+
+        List<(IMemoryOwner<byte> Memory, int Length, long Address)> bufferList = new();
+        long totalLength = 0;
+        long lastAddress = 0;
+
+        while( !ct.IsCancellationRequested )
+        {
+            // Collect entries up to a batch threshold.
+            while( _iterator.GetNext( memoryPool, out var entry, out var entryLength, out var currentAddress ) )
+            {
+                bufferList.Add( (entry, entryLength, currentAddress) );
+                totalLength += entryLength;
+                lastAddress = currentAddress;
+
+                if( totalLength >= _batchThresholdBytes )
+                    break;
+            }
+
+            if( bufferList.Count == 0 )
+            {
+                // Wait for new entries.
+                try
+                {
+                    if( !await _iterator.WaitAsync( ct ) )
+                        break; // Log shutdown or end reached.
+                }
+                catch( OperationCanceledException )
+                {
+                    break;
+                }
+                continue;
+            }
+
+            // Process batch with retry-on-failure.
+            var (success, throttleTime) = await ProcessBufferWithRetryAsync( bufferList, ct );
+
+            if( success )
+            {
+                // Commit progress.
+                _iterator.CompleteUntil( lastAddress );
+                await _log.CommitAsync( ct );
+
+                // Reset for next batch.
+                totalLength = 0;
+                lastAddress = 0;
+
+                if( throttleTime > TimeSpan.Zero )
+                {
+                    try
+                    {
+                        await Task.Delay( throttleTime, ct );
+                    }
+                    catch( OperationCanceledException )
+                    {
+                        break;
+                    }
+                }
+            }
+            // On failure (cancellation), don't commit - entries will be retried on restart.
+        }
+    }
+
+    async Task<(bool Success, TimeSpan ThrottleTime)> ProcessBufferWithRetryAsync(
+        List<(IMemoryOwner<byte> Memory, int Length, long Address)> entries,
+        CancellationToken ct )
+    {
+        var throttleTime = TimeSpan.Zero;
+        var success = false;
+
+        while( !ct.IsCancellationRequested && !success )
+        {
+            try
+            {
+                throttleTime = await ProcessEntriesAsync(
+                    entries.Select( e => (ReadOnlyMemory<byte>)e.Memory.Memory[..e.Length] ) );
+                success = true;
+            }
+            catch( OperationCanceledException )
+            {
+                throw;
+            }
+            catch( Exception ex )
+            {
+                ActivityMonitor.StaticLogger.Error(
+                    ActivityMonitor.Tags.SecurityCritical,
+                    $"Error processing metrics batch in consumer '{_name}'. Will retry in {_retryDelayMs} ms.",
+                    ex );
+
+                try
+                {
+                    await Task.Delay( _retryDelayMs, ct );
+                }
+                catch( OperationCanceledException )
+                {
+                    break;
+                }
+            }
+        }
+
+        // Release memory.
+        foreach( var entry in entries )
+            entry.Memory.Dispose();
+        entries.Clear();
+
+        return (success, throttleTime);
+    }
+
+    /// <summary>
+    /// Processes a batch of metrics entries.
+    /// Implementations should throw an exception to trigger retry behavior.
+    /// </summary>
+    /// <param name="entries">The batch of entries to process. Each entry contains DateTime (8 bytes) + ASCII text.</param>
+    /// <returns>
+    /// A TimeSpan indicating how long to wait before processing the next batch.
+    /// Return <see cref="TimeSpan.Zero"/> for no throttling.
+    /// </returns>
+    protected abstract Task<TimeSpan> ProcessEntriesAsync( IEnumerable<ReadOnlyMemory<byte>> entries );
+
+    /// <inheritdoc />
+    public virtual async ValueTask DisposeAsync()
+    {
+        if( _stopTokenSource != null )
+        {
+            await _stopTokenSource.CancelAsync();
+
+            if( _processorTask != null )
+            {
+                try
+                {
+                    await _processorTask;
+                }
+                catch( OperationCanceledException )
+                {
+                    // Expected.
+                }
+                catch( Exception )
+                {
+                    // Ignore errors during shutdown.
+                }
+            }
+
+            _stopTokenSource.Dispose();
+            _stopTokenSource = null;
+        }
+
+        // Disposing the iterator removes it from FasterLog.PersistedIterators.
+        _iterator?.Dispose();
+        _iterator = null;
+    }
+}

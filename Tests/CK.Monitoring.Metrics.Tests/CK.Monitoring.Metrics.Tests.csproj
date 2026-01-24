@@ -4,12 +4,17 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Testing.Nunit" Version="14.1.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="CK.Testing.Nunit" Version="14.1.1" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="6.1.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\CK.Monitoring.Metrics\CK.Monitoring.Metrics.csproj" />
+    <ProjectReference Include="..\..\CK.AppIdentity.Monitoring.Metrics\CK.AppIdentity.Monitoring.Metrics.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Logs\" />

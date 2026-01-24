@@ -9,10 +9,6 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Monitoring" Version="25.1.0" />
-    <PackageReference Include="Microsoft.FASTER.Core" Version="2.6.5" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\CK.Metrics\CK.Metrics.csproj" />
+    <ProjectReference Include="..\CK.AppIdentity.Monitoring.Metrics\CK.AppIdentity.Monitoring.Metrics.csproj" />
   </ItemGroup>
 </Project>

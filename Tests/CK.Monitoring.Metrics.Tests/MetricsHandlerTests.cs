@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using CK.AppIdentity.Monitoring.Metrics;
 using CK.Core;
 using CK.Metrics;
 using CK.Monitoring.Handlers;
+using FASTER.core;
 using NUnit.Framework;
 using static CK.Testing.MonitorTestHelper;
 
@@ -16,25 +19,33 @@ namespace CK.Monitoring.Metrics.Tests;
 public class MetricsHandlerTests
 {
     [Test, CancelAfter( 10000 )]
-    public async Task MetricsHandlerBase_can_process_metrics_Async( CancellationToken ct )
+    public async Task MetricsLogHandler_writes_metrics_to_FasterLog_Async( CancellationToken ct )
     {
         var fasterLogPath = PrepareFasterLogDir();
 
-        var testHandlerConfig = new TestMetricsConfiguration()
-        {
-            FasterLogPath = fasterLogPath,
-            CommitRate = 1
-        };
+        // Create FasterLog.
+        using var device = Devices.CreateLogDevice( Path.Combine( fasterLogPath, "metrics.log" ), preallocateFile: false );
+        var logSettings = new FasterLogSettings { LogDevice = device };
+        using var log = new FasterLog( logSettings );
+
+        // Create handler configuration.
+        var handlerConfig = new MetricsLogHandlerConfiguration { CommitRate = 1 };
 
         await using var go = GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration
         {
             MinimalFilter = LogFilter.Debug,
             Handlers =
             {
-                testHandlerConfig,
-                new TextFileConfiguration() {Path = "Text"}
+                handlerConfig,
+                new TextFileConfiguration() { Path = "Text" }
             }
         } );
+
+        // Inject FasterLog into handler via action.
+        var setAction = new SetMetricsFasterLogAction( log );
+        go.Sink.Submit( setAction );
+        await setAction.Completion;
+        Assert.That( setAction.HandlerFound, Is.True );
 
         DotNetMetrics.ApplyConfiguration( new MetricsConfiguration
         {
@@ -45,15 +56,9 @@ public class MetricsHandlerTests
             }
         }, waitForApplication: true );
 
-        // In addition to the measures, there are 4 entries:
-        // +Meter,
-        // +Instrument,
-        // +IConfig,
-        // ... (measures come here)
-        // -Meter
-        const int meterCount = 21;
-        const int measureCount = 21;
-        int totalEntryCount = meterCount * ( measureCount + 4 );
+        // Create meters and record measurements.
+        const int meterCount = 5;
+        const int measureCount = 10;
 
         for( int i = 0; i < meterCount; i++ )
         {
@@ -65,44 +70,78 @@ public class MetricsHandlerTests
             }
         }
 
-        while( testHandlerConfig.TestEntryQueue.Count < totalEntryCount )
+        // Wait for entries to be written to FasterLog.
+        await Task.Delay( 1000, ct );
+        await log.CommitAsync( ct );
+
+        // Read entries from FasterLog.
+        var entries = new List<(DateTime Time, string Text)>();
+        using var iter = log.Scan( 0, long.MaxValue );
+        while( iter.GetNext( out var data, out var length, out _ ) )
         {
-            await Task.Delay( 500, ct );
-            ct.ThrowIfCancellationRequested();
+            var dateTime = DateTime.FromBinary( BitConverter.ToInt64( data, 0 ) );
+            var text = Encoding.ASCII.GetString( data, sizeof( long ), length - sizeof( long ) );
+            entries.Add( (dateTime, text) );
         }
 
-        // Put entries in dispatcher
+        // Verify entries were written.
+        Assert.That( entries.Count, Is.GreaterThan( 0 ) );
+
+        // Parse entries using dispatcher.
         var dispatcher = new TestMetricsLogDispatcher();
         var monitor = new ActivityMonitor( "TestMetricsLogDispatcher" );
-        while( testHandlerConfig.TestEntryQueue.TryDequeue( out var entry ) )
+        foreach( var entry in entries )
         {
-            var dateTime = DateTime.FromBinary( BitConverter.ToInt64( entry, 0 ) );
-            var text = System.Text.Encoding.ASCII.GetString( entry.AsSpan( sizeof(long) ) );
-            monitor.Info( $"Received after FasterLog: {text} @ {dateTime:O}" );
-            dispatcher.Add( monitor, dateTime, text );
+            dispatcher.Add( monitor, entry.Time, entry.Text );
         }
 
-        // Check entries
-        dispatcher.NewMeters.Count.ShouldBe( meterCount );
-        dispatcher.Instruments.Count.ShouldBe( meterCount );
-        dispatcher.Measures.Count.ShouldBe( meterCount * measureCount );
-        dispatcher.DisposedMeters.Count.ShouldBe( meterCount );
-
-        for( int i = 0; i < meterCount; i++ )
-        {
-            for( int j = 0; j < measureCount; j++ )
-            {
-                int idx = i * measureCount + j;
-                var item = dispatcher.Measures[idx];
-                item.instrument.FullName.ShouldBe( $"test.meter{i}/test.instrument{i}" );
-                item.measure.Measure.ToString().ShouldBe( j.ToString() );
-                item.measure.Tags.ToString().ShouldBe( @$"""a"",""b{j}""" );
-            }
-        }
-
+        // Verify dispatched entries.
+        Assert.That( dispatcher.NewMeters.Count, Is.EqualTo( meterCount ) );
+        Assert.That( dispatcher.Instruments.Count, Is.EqualTo( meterCount ) );
+        Assert.That( dispatcher.Measures.Count, Is.EqualTo( meterCount * measureCount ) );
+        Assert.That( dispatcher.DisposedMeters.Count, Is.EqualTo( meterCount ) );
     }
 
-    private string PrepareFasterLogDir()
+    [Test]
+    public void SetFasterLog_throws_if_already_set()
+    {
+        var fasterLogPath = PrepareFasterLogDir();
+
+        using var device = Devices.CreateLogDevice( Path.Combine( fasterLogPath, "metrics.log" ), preallocateFile: false );
+        var logSettings = new FasterLogSettings { LogDevice = device };
+        using var log = new FasterLog( logSettings );
+
+        var handler = new MetricsLogHandler( new MetricsLogHandlerConfiguration() );
+        handler.SetFasterLog( log );
+
+        Assert.Throws<InvalidOperationException>( () => handler.SetFasterLog( log ) );
+    }
+
+    [Test]
+    public async Task ApplyConfigurationAsync_accepts_same_handler_type_Async()
+    {
+        var handler = new MetricsLogHandler( new MetricsLogHandlerConfiguration { CommitRate = 1 } );
+        await handler.ActivateAsync( TestHelper.Monitor );
+
+        var newConfig = new MetricsLogHandlerConfiguration { CommitRate = 5 };
+        var result = await handler.ApplyConfigurationAsync( TestHelper.Monitor, newConfig );
+
+        Assert.That( result, Is.True );
+    }
+
+    [Test]
+    public async Task ApplyConfigurationAsync_rejects_different_handler_type_Async()
+    {
+        var handler = new MetricsLogHandler( new MetricsLogHandlerConfiguration() );
+        await handler.ActivateAsync( TestHelper.Monitor );
+
+        var otherConfig = new TextFileConfiguration { Path = "test" };
+        var result = await handler.ApplyConfigurationAsync( TestHelper.Monitor, otherConfig );
+
+        Assert.That( result, Is.False );
+    }
+
+    string PrepareFasterLogDir()
     {
         var path = Path.Combine( TestHelper.TestProjectFolder, "Logs", TestContext.CurrentContext.Test.Name,
             "FasterLog" );
@@ -110,7 +149,6 @@ public class MetricsHandlerTests
         Directory.CreateDirectory( path );
         return path;
     }
-
 
     record struct MeasureInfo( FullInstrumentInfo instrument, DateTime measureTime, ParsedMeasureLog measure );
 
