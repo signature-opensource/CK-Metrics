@@ -70,7 +70,7 @@ public sealed class InstrumentMatcher
         var b = ImmutableArray.CreateBuilder<KeyValuePair<string, object?>>();
         b.AddRange( t );
         b.Sort( ( left, right ) => string.Compare( left.Key, right.Key, StringComparison.Ordinal ) );
-        var tags = b.MoveToImmutable();
+        var tags = b.DrainToImmutable();
         // The match relies on non duplicate keys.
         // One day, there will be a TagValueMatcher and new overloads to build a InstrumentMatcher:
         // duplicate keys could then be unified into a composite OR TagValueMatcher.
@@ -96,9 +96,10 @@ public sealed class InstrumentMatcher
             return false;
         }
         if( _includeTags.Length > 0
-            && MatchTags( true, _includeTags, instrument.MeterInfo.Tags )
-            && MatchTags( true, _includeTags, instrument.Info.Tags ) )
+            && !MatchTags( true, _includeTags, instrument.MeterInfo.Tags )
+            && !MatchTags( true, _includeTags, instrument.Info.Tags ) )
         {
+            // Include tags are required but not found in either meter or instrument tags.
             return false;
         }
         if( _excludeTags.Length > 0
@@ -114,9 +115,20 @@ public sealed class InstrumentMatcher
                            ImmutableArray<KeyValuePair<string, object?>> matchers,
                            ImmutableArray<KeyValuePair<string, object?>> sortedTags )
     {
-        if( sortedTags == null ) return !include;
+        // Returns true if all matchers are found in sortedTags.
+        // The 'include' parameter is no longer used here - it was causing confusion.
+        // Empty or default tags cannot contain any matchers.
+        if( sortedTags.IsDefault || sortedTags.Length == 0 )
+        {
+            return false;
+        }
         var mE = matchers.GetEnumerator();
         var tE = sortedTags.GetEnumerator();
+        // Must position tE to the first element before accessing Current.
+        if( !tE.MoveNext() )
+        {
+            return false;
+        }
         while( mE.MoveNext() )
         {
             var mKey = mE.Current.Key;
@@ -124,12 +136,14 @@ public sealed class InstrumentMatcher
             {
                 var tKey = tE.Current.Key;
                 int cmp = StringComparer.Ordinal.Compare( mKey, tKey );
-                if( cmp < 0 )
+                if( cmp > 0 )
                 {
+                    // Matcher key comes after current tag key - advance tags to find it.
                     if( !tE.MoveNext() ) return false;
                 }
-                else if( cmp > 0 )
+                else if( cmp < 0 )
                 {
+                    // Matcher key comes before current tag key - we've passed it, not found.
                     return false;
                 }
                 else
