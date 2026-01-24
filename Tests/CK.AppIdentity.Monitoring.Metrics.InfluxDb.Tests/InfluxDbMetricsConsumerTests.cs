@@ -159,7 +159,11 @@ public class InfluxDbMetricsConsumerTests
         var consumer = new InfluxDbMetricsConsumer( log, "test-consumer", config, "Domain", "Env", "Party" );
         await consumer.StartAsync( TestHelper.Monitor, cts.Token );
 
-        await Task.Delay( 500, cancellationToken );
+        // Wait for processing with polling (like other tests in this file)
+        for( int i = 0; i < 10 && consumer.CompletedUntilAddress == 0; i++ )
+        {
+            await Task.Delay( 200, cancellationToken );
+        }
 
         var address = consumer.CompletedUntilAddress;
 
