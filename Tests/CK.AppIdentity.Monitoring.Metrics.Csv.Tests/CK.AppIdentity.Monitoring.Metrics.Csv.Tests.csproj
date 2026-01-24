@@ -1,18 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="CK.AppIdentity.Hosting" Version="0.12.0" />
     <PackageReference Include="CK.Testing.Nunit" Version="14.1.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.7" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\CK.Monitoring.Metrics\CK.Monitoring.Metrics.csproj" />
-    <ProjectReference Include="..\..\CK.AppIdentity.Monitoring.Metrics\CK.AppIdentity.Monitoring.Metrics.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Logs\" />
+    <ProjectReference Include="..\..\CK.AppIdentity.Monitoring.Metrics.Csv\CK.AppIdentity.Monitoring.Metrics.Csv.csproj" />
   </ItemGroup>
 </Project>
