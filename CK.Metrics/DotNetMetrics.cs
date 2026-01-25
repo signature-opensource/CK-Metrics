@@ -79,7 +79,8 @@ public static partial class DotNetMetrics
         AttributeNameLengthLimit = 255;
         AttributeValueLengthLimit = 1023;
 
-        _tag = ActivityMonitor.Tags.Context.FindOrCreate( "Metrics" );
+        _tag = ActivityMonitor.Tags.Register( "Metrics" );
+        ActivityMonitor.Tags.AddDefaultFilter( _tag, new LogClamper( LogFilter.Monitor, true ) );
         _filePath = ThisFile() ?? "DotNetMetrics.cs";
         _meters = new Dictionary<Meter, MeterState>();
         _instruments = new ConcurrentDictionary<Instrument, InstrumentState>();
@@ -249,6 +250,7 @@ public static partial class DotNetMetrics
     // Called from the MicroAgent.
     static void Apply( ActivityMonitor monitor, MetricsConfiguration configuration )
     {
+        using var _t = monitor.TemporarilySetAutoTags( _tag );
         using var _ = monitor.OpenTrace( "Applying metrics configuration." );
         // Take a snapshot of the MeterState and work on it. The InstrumentState list of each MeterState
         // is thread safe by design (append only single linked list). Instruments concurently published

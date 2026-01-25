@@ -1,4 +1,5 @@
 using CK.Core;
+using CK.Metrics;
 using CK.Monitoring;
 using FASTER.core;
 
@@ -36,7 +37,7 @@ public sealed class SetMetricsFasterLogAction : GrandOutputHandlersAction
         {
             handler.SetFasterLog( _log );
             _found = true;
-            monitor.Info( $"Injected FasterLog into MetricsLogHandler." );
+            monitor.Info( DotNetMetrics.MetricsTag, $"Injected FasterLog into MetricsLogHandler." );
         }
         return ValueTask.CompletedTask;
     }

@@ -1,5 +1,6 @@
 using CK.AppIdentity;
 using CK.Core;
+using CK.Metrics;
 using Microsoft.Extensions.Configuration;
 
 namespace CK.AppIdentity.Monitoring.Metrics.Csv;
@@ -177,6 +178,8 @@ public sealed class CsvMetricsConsumerFeatureDriver : ApplicationIdentityFeature
     /// </remarks>
     protected override async Task<bool> SetupAsync( FeatureLifetimeContext context )
     {
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+
         // -------------------------------------------------------------------------
         // Check if MetricsFeatureDriver has a FasterLog
         // -------------------------------------------------------------------------
@@ -336,6 +339,8 @@ public sealed class CsvMetricsConsumerFeatureDriver : ApplicationIdentityFeature
     /// </remarks>
     protected override async Task TeardownAsync( FeatureLifetimeContext context )
     {
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+
         if( _consumer != null )
         {
             // RemoveConsumerAsync removes from the driver's list and disposes the consumer.

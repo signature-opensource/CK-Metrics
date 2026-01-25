@@ -1,4 +1,5 @@
 using CK.Core;
+using CK.Metrics;
 using CK.Monitoring;
 
 namespace CK.AppIdentity.Monitoring.Metrics;
@@ -24,7 +25,7 @@ public sealed class ClearMetricsFasterLogAction : GrandOutputHandlersAction
         {
             handler.ClearFasterLog();
             _found = true;
-            monitor.Info( $"Cleared FasterLog from MetricsLogHandler." );
+            monitor.Info( DotNetMetrics.MetricsTag, $"Cleared FasterLog from MetricsLogHandler." );
         }
         return ValueTask.CompletedTask;
     }
