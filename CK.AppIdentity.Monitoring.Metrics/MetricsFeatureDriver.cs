@@ -1,4 +1,5 @@
 using CK.Core;
+using CK.Metrics;
 using CK.Monitoring;
 using FASTER.core;
 using Microsoft.Extensions.Configuration;
@@ -133,6 +134,8 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
     /// <inheritdoc />
     protected override async Task<bool> SetupAsync( FeatureLifetimeContext context )
     {
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+
         // Read configuration from the Local:Metrics section.
         var metricsSection = ApplicationIdentityService.LocalConfiguration.Configuration.GetSection( "Metrics" );
         if( !metricsSection.Exists() )
@@ -281,6 +284,8 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
     /// <inheritdoc />
     protected override async Task TeardownAsync( FeatureLifetimeContext context )
     {
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+
         if( _log == null ) return;
 
         // Stop the truncation timer.

@@ -1,5 +1,6 @@
 using CK.AppIdentity;
 using CK.Core;
+using CK.Metrics;
 using Microsoft.Extensions.Configuration;
 
 namespace CK.AppIdentity.Monitoring.Metrics.InfluxDb;
@@ -54,6 +55,8 @@ public sealed class InfluxDbMetricsConsumerFeatureDriver : ApplicationIdentityFe
     /// <inheritdoc />
     protected override async Task<bool> SetupAsync( FeatureLifetimeContext context )
     {
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+
         // Check if MetricsFeatureDriver has a FasterLog
         if( _metricsDriver.FasterLog == null )
         {
@@ -162,6 +165,8 @@ public sealed class InfluxDbMetricsConsumerFeatureDriver : ApplicationIdentityFe
     /// <inheritdoc />
     protected override async Task TeardownAsync( FeatureLifetimeContext context )
     {
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+
         if( _consumer != null )
         {
             await _metricsDriver.RemoveConsumerAsync( _consumer.Name );
