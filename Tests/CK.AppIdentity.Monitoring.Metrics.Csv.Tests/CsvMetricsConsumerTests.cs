@@ -30,7 +30,8 @@ public class CsvMetricsConsumerTests
         await log.CommitAsync();
 
         var cts = new CancellationTokenSource();
-        var consumer = new CsvMetricsConsumer( log, "test-consumer", csvPath );
+        // Use maxBatchAgeMs: 0 for immediate processing in tests.
+        var consumer = new CsvMetricsConsumer( log, "test-consumer", csvPath, maxBatchAgeMs: 0 );
         await consumer.StartAsync( TestHelper.Monitor, cts.Token );
 
         // Wait for consumer to process.
@@ -70,7 +71,8 @@ public class CsvMetricsConsumerTests
         await log.CommitAsync();
 
         var cts = new CancellationTokenSource();
-        var consumer = new CsvMetricsConsumer( log, "test-consumer", csvPath );
+        // Use maxBatchAgeMs: 0 for immediate processing in tests.
+        var consumer = new CsvMetricsConsumer( log, "test-consumer", csvPath, maxBatchAgeMs: 0 );
         await consumer.StartAsync( TestHelper.Monitor, cts.Token );
 
         // Wait for consumer to process.
@@ -114,7 +116,8 @@ public class CsvMetricsConsumerTests
         await log.CommitAsync();
 
         var cts = new CancellationTokenSource();
-        var consumer = new CsvMetricsConsumer( log, "test-consumer", csvPath );
+        // Use maxBatchAgeMs: 0 for immediate processing in tests.
+        var consumer = new CsvMetricsConsumer( log, "test-consumer", csvPath, maxBatchAgeMs: 0 );
         await consumer.StartAsync( TestHelper.Monitor, cts.Token );
 
         // Wait for consumer to process.

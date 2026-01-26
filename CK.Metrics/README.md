@@ -97,7 +97,9 @@ CK.Metrics sets up a global `MeterListener` at static initialization that:
 
 1. **Captures all Meters and Instruments** as they are created via `System.Diagnostics.Metrics`
 2. **Validates naming** against strict OpenTelemetry-compatible patterns (see Restrictions)
-3. **Logs metrics events** through `ActivityMonitor.StaticLogger` with the "Metrics" tag
+3. **Logs metrics events** through `ActivityMonitor.StaticLogger` using two tags:
+   - `MetricsTag` ("Metrics"): for actual metric entries (meter/instrument creation, measurements)
+   - `MetricsInternalTag` ("MetricsInternal"): for internal/diagnostic logging with a default `LogFilter.Monitor` filter (groups: Trace, lines: Warn) to reduce noise
 4. **Applies configurations** to enable/disable instruments based on pattern matching
 
 ### Metric Log Format
@@ -116,15 +118,17 @@ These entries flow through the CK.Monitoring pipeline and can be processed by ha
 
 ## Configuration
 
-The 2 following static methods of the `DotNetMetrics` class are thread-safe and configures the metrics for the whole system:
+The following static methods of the `DotNetMetrics` class are thread-safe and configure the metrics for the whole system:
 ```csharp
-public static Task<DotNetMetricsInfo> GetAvailableMetricsAsync();
-public static void ApplyConfiguration( MetricsConfiguration configuration );
+public static DotNetMetricsInfo GetConfiguration();
+public static Task<DotNetMetricsInfo> GetConfigurationAsync();
+public static void ApplyConfiguration( MetricsConfiguration configuration, bool waitForApplication = false );
+public static Task<DotNetMetricsInfo> ApplyAndGetConfigurationAsync( MetricsConfiguration configuration );
 ```
 
 ## Getting the current System state and configurations
 
-The `DotNetMetricsInfo` returned by `GetAvailableMetricsAsync` exposes the Meters and Instruments and the
+The `DotNetMetricsInfo` returned by `GetConfiguration` or `GetConfigurationAsync` exposes the Meters and Instruments and the
 configuration of the timer that collects the measures of the `ObservableInstrument`:
 
 ```csharp

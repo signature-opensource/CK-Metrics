@@ -29,7 +29,8 @@ public sealed class InfluxDbMetricsConsumer : MetricsConsumerBase
         string environment,
         string party,
         HttpClient? httpClient = null )
-        : base( log, name, config.RetryDelayMs, config.BatchThresholdBytes )
+        : base( log, name, config.RetryDelayMs, config.BatchThresholdBytes,
+                config.MaxBatchAgeMs, config.GracefulShutdownTimeoutMs )
     {
         Throw.CheckNotNullArgument( config );
         Throw.CheckNotNullOrWhiteSpaceArgument( config.ServerUrl );
