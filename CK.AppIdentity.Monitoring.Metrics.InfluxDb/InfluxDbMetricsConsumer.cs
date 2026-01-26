@@ -73,7 +73,7 @@ public sealed class InfluxDbMetricsConsumer : MetricsConsumerBase
     {
         // Create a monitor for the dispatcher (same as CsvMetricsConsumer)
         var monitor = new ActivityMonitor( "InfluxDbMetricsConsumer" );
-        using var _ = monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+        using var _ = monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsInternalTag );
 
         try
         {

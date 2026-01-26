@@ -94,7 +94,7 @@ public sealed class MetricsLogHandler : IGrandOutputHandler
 
             if( requiredSize > (1 << 16) - sizeof(long) )
             {
-                monitor.Warn( DotNetMetrics.MetricsTag, $"Metrics entry too large: {text}" );
+                monitor.Warn( DotNetMetrics.MetricsInternalTag, $"Metrics entry too large: {text}" );
                 return ValueTask.CompletedTask;
             }
 

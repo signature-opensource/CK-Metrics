@@ -37,7 +37,7 @@ public sealed class SetMetricsFasterLogAction : GrandOutputHandlersAction
         {
             handler.SetFasterLog( _log );
             _found = true;
-            monitor.Info( DotNetMetrics.MetricsTag, $"Injected FasterLog into MetricsLogHandler." );
+            monitor.Info( DotNetMetrics.MetricsInternalTag, $"Injected FasterLog into MetricsLogHandler." );
         }
         return ValueTask.CompletedTask;
     }

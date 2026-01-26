@@ -25,7 +25,7 @@ public sealed class ClearMetricsFasterLogAction : GrandOutputHandlersAction
         {
             handler.ClearFasterLog();
             _found = true;
-            monitor.Info( DotNetMetrics.MetricsTag, $"Cleared FasterLog from MetricsLogHandler." );
+            monitor.Info( DotNetMetrics.MetricsInternalTag, $"Cleared FasterLog from MetricsLogHandler." );
         }
         return ValueTask.CompletedTask;
     }
