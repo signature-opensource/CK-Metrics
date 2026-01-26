@@ -14,6 +14,8 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
     readonly string _name;
     readonly int _retryDelayMs;
     readonly long _batchThresholdBytes;
+    readonly int _maxBatchAgeMs;
+    readonly int _gracefulShutdownTimeoutMs;
 
     FasterLogScanIterator? _iterator;
     Task? _processorTask;
@@ -26,11 +28,15 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
     /// <param name="name">The unique name for this consumer (max 20 characters).</param>
     /// <param name="retryDelayMs">Delay in milliseconds before retrying on failure. Defaults to 2000.</param>
     /// <param name="batchThresholdBytes">Size threshold in bytes for batching entries. Defaults to 2 MiB.</param>
+    /// <param name="maxBatchAgeMs">Maximum age in milliseconds for a batch before it is sent. Defaults to 60000 (1 minute). Set to 0 for immediate sending.</param>
+    /// <param name="gracefulShutdownTimeoutMs">Timeout in milliseconds for graceful shutdown flush. Defaults to 5000 (5 seconds). Set to 0 to skip graceful flush.</param>
     protected MetricsConsumerBase(
         FasterLog log,
         string name,
         int retryDelayMs = 2000,
-        long batchThresholdBytes = 2 << 21 )
+        long batchThresholdBytes = 2 << 21,
+        int maxBatchAgeMs = 60000,
+        int gracefulShutdownTimeoutMs = 5000 )
     {
         Throw.CheckNotNullArgument( log );
         Throw.CheckNotNullOrWhiteSpaceArgument( name );
@@ -40,6 +46,8 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
         _name = name;
         _retryDelayMs = retryDelayMs;
         _batchThresholdBytes = batchThresholdBytes;
+        _maxBatchAgeMs = maxBatchAgeMs;
+        _gracefulShutdownTimeoutMs = gracefulShutdownTimeoutMs;
     }
 
     /// <inheritdoc />
@@ -77,18 +85,26 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
         List<(IMemoryOwner<byte> Memory, int Length, long Address)> bufferList = new();
         long totalLength = 0;
         long lastAddress = 0;
+        DateTime? batchStartTime = null;
 
         while( !ct.IsCancellationRequested )
         {
             // Collect entries up to a batch threshold.
+            bool thresholdReached = false;
             while( _iterator.GetNext( memoryPool, out var entry, out var entryLength, out var currentAddress ) )
             {
+                if( bufferList.Count == 0 )
+                    batchStartTime = DateTime.UtcNow;
+
                 bufferList.Add( (entry, entryLength, currentAddress) );
                 totalLength += entryLength;
                 lastAddress = currentAddress;
 
                 if( totalLength >= _batchThresholdBytes )
+                {
+                    thresholdReached = true;
                     break;
+                }
             }
 
             if( bufferList.Count == 0 )
@@ -106,6 +122,34 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
                 continue;
             }
 
+            // If batch is not full and maxBatchAge is configured, wait for more entries.
+            if( !thresholdReached && _maxBatchAgeMs > 0 && batchStartTime.HasValue )
+            {
+                var elapsed = DateTime.UtcNow - batchStartTime.Value;
+                var remaining = TimeSpan.FromMilliseconds( _maxBatchAgeMs ) - elapsed;
+
+                if( remaining > TimeSpan.Zero )
+                {
+                    try
+                    {
+                        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource( ct );
+                        timeoutCts.CancelAfter( remaining );
+
+                        if( await _iterator.WaitAsync( timeoutCts.Token ) )
+                            continue; // New entries available, collect them.
+                    }
+                    catch( OperationCanceledException ) when( !ct.IsCancellationRequested )
+                    {
+                        // Timeout - proceed to process the batch.
+                    }
+                    catch( OperationCanceledException )
+                    {
+                        // Actual cancellation requested.
+                        break;
+                    }
+                }
+            }
+
             // Process batch with retry-on-failure.
             var (success, throttleTime) = await ProcessBufferWithRetryAsync( bufferList, ct );
 
@@ -118,6 +162,7 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
                 // Reset for next batch.
                 totalLength = 0;
                 lastAddress = 0;
+                batchStartTime = null;
 
                 if( throttleTime > TimeSpan.Zero )
                 {
@@ -132,6 +177,39 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
                 }
             }
             // On failure (cancellation), don't commit - entries will be retried on restart.
+        }
+
+        // Graceful shutdown: flush any pending entries.
+        if( bufferList.Count > 0 && _gracefulShutdownTimeoutMs > 0 )
+        {
+            try
+            {
+                using var gracefulCts = new CancellationTokenSource( _gracefulShutdownTimeoutMs );
+                var (success, _) = await ProcessBufferWithRetryAsync( bufferList, gracefulCts.Token );
+
+                if( success )
+                {
+                    _iterator.CompleteUntil( lastAddress );
+                    await _log.CommitAsync( gracefulCts.Token );
+                    ActivityMonitor.StaticLogger.Info(
+                        $"Consumer '{_name}' flushed pending entries during graceful shutdown." );
+                }
+            }
+            catch( OperationCanceledException )
+            {
+                // Graceful shutdown timeout - entries will be processed on next startup.
+                ActivityMonitor.StaticLogger.Warn(
+                    ActivityMonitor.Tags.ToBeInvestigated,
+                    $"Graceful shutdown timeout ({_gracefulShutdownTimeoutMs}ms) reached for consumer '{_name}'. " +
+                    "Pending entries will be retried on next startup." );
+            }
+            catch( Exception ex )
+            {
+                ActivityMonitor.StaticLogger.Error(
+                    ActivityMonitor.Tags.ToBeInvestigated,
+                    $"Error during graceful shutdown flush for consumer '{_name}'.",
+                    ex );
+            }
         }
     }
 
@@ -202,6 +280,7 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
             {
                 try
                 {
+                    // Wait for the processor task which includes graceful shutdown logic.
                     await _processorTask;
                 }
                 catch( OperationCanceledException )

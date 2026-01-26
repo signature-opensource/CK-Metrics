@@ -112,6 +112,12 @@ public sealed class InfluxDbMetricsConsumerFeatureDriver : ApplicationIdentityFe
         if( long.TryParse( influxSection["BatchThresholdBytes"], out var batchThresholdBytes ) )
             config.BatchThresholdBytes = batchThresholdBytes;
 
+        if( int.TryParse( influxSection["MaxBatchAgeMs"], out var maxBatchAgeMs ) )
+            config.MaxBatchAgeMs = maxBatchAgeMs;
+
+        if( int.TryParse( influxSection["GracefulShutdownTimeoutMs"], out var gracefulShutdownTimeoutMs ) )
+            config.GracefulShutdownTimeoutMs = gracefulShutdownTimeoutMs;
+
         // Parse optional static tags (with environment variable expansion)
         var tagsSection = influxSection.GetSection( "Tags" );
         if( tagsSection.Exists() )

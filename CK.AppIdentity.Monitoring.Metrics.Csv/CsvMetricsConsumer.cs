@@ -83,13 +83,23 @@ public sealed class CsvMetricsConsumer : MetricsConsumerBase
     /// The base class collects entries until this threshold is reached, then calls <see cref="ProcessEntriesAsync"/>.
     /// Larger batches improve throughput but increase memory usage and latency.
     /// </param>
+    /// <param name="maxBatchAgeMs">
+    /// Maximum age in milliseconds for a batch before it is sent.
+    /// Set to 0 for immediate sending when entries are available.
+    /// </param>
+    /// <param name="gracefulShutdownTimeoutMs">
+    /// Timeout in milliseconds for graceful shutdown flush.
+    /// Set to 0 to skip graceful flush.
+    /// </param>
     public CsvMetricsConsumer(
         FasterLog log,
         string name,
         string filePath,
         int retryDelayMs = 2000,
-        long batchThresholdBytes = 2 << 21 )
-        : base( log, name, retryDelayMs, batchThresholdBytes )
+        long batchThresholdBytes = 2 << 21,
+        int maxBatchAgeMs = 60000,
+        int gracefulShutdownTimeoutMs = 5000 )
+        : base( log, name, retryDelayMs, batchThresholdBytes, maxBatchAgeMs, gracefulShutdownTimeoutMs )
     {
         // Validate consumer-specific parameters.
         Throw.CheckNotNullOrWhiteSpaceArgument( filePath );

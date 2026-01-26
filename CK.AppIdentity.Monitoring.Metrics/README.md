@@ -61,7 +61,11 @@ Create a consumer by extending `MetricsConsumerBase`:
 public class MyMetricsConsumer : MetricsConsumerBase
 {
     public MyMetricsConsumer(FasterLog log, string name)
-        : base(log, name, retryDelayMs: 2000, batchThresholdBytes: 2 << 21)
+        : base(log, name,
+               retryDelayMs: 2000,
+               batchThresholdBytes: 2 << 21,
+               maxBatchAgeMs: 60000,              // Send after 1 minute even if batch not full
+               gracefulShutdownTimeoutMs: 5000)  // Wait up to 5s for final flush on shutdown
     {
     }
 
@@ -125,7 +129,18 @@ public class MyConsumerFeatureDriver : ApplicationIdentityFeatureDriver
 - **Recovery**: On restart, consumers resume from their last committed position
 - **Retry-on-failure**: Exceptions in `ProcessEntriesAsync` trigger automatic retry after delay
 - **Batching**: Entries are batched up to a configurable size threshold
+- **Time-based batching**: Entries are sent after `maxBatchAgeMs` even if the batch threshold isn't reached
+- **Graceful shutdown**: Pending entries are flushed before the consumer shuts down (configurable timeout)
 - **Auto-truncation**: The driver periodically truncates the log up to the slowest consumer's position
+
+### Constructor Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `retryDelayMs` | 2000 | Delay in ms before retrying after a processing failure |
+| `batchThresholdBytes` | 2 MiB | Size threshold for batching entries |
+| `maxBatchAgeMs` | 60000 | Max time (ms) entries can accumulate before sending. Set to `0` for immediate sending. |
+| `gracefulShutdownTimeoutMs` | 5000 | Max time (ms) to wait for final flush on shutdown. Set to `0` to skip graceful flush. |
 
 ## Orphan Cleanup
 

@@ -147,7 +147,8 @@ public class InfluxDbMetricsConsumerTests
             Token = mockServer.Token,
             UseGzip = false,
             FlushIntervalMs = 50,
-            RetryDelayMs = 100
+            RetryDelayMs = 100,
+            MaxBatchAgeMs = 0 // Immediate processing for tests
         };
 
         EnqueueMetricsEntry( log, "+Meter:1,\"test.meter\",\"1.0\",\"\",[]" );
@@ -196,7 +197,8 @@ public class InfluxDbMetricsConsumerTests
             Token = "test",
             UseGzip = false,
             FlushIntervalMs = 50,
-            RetryDelayMs = 100
+            RetryDelayMs = 100,
+            MaxBatchAgeMs = 0 // Immediate processing for tests
         };
 
         EnqueueMetricsEntry( log, "+Meter:1,\"test.meter\",\"1.0\",\"\",[]" );
@@ -248,7 +250,8 @@ public class InfluxDbMetricsConsumerTests
             Token = mockServer.Token,
             UseGzip = false,
             FlushIntervalMs = 50,
-            RetryDelayMs = 100
+            RetryDelayMs = 100,
+            MaxBatchAgeMs = 0 // Immediate processing for tests
         };
 
         EnqueueMetricsEntry( log, "+Meter:1,\"test.meter\",\"1.0\",\"\",[]" );
@@ -554,7 +557,8 @@ public class InfluxDbMetricsConsumerTests
             Token = token,
             UseGzip = false,
             FlushIntervalMs = 50,
-            RetryDelayMs = 1000
+            RetryDelayMs = 1000,
+            MaxBatchAgeMs = 0 // Immediate processing for tests
         };
 
         // Generate unique test run ID for verification

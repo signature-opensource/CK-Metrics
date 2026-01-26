@@ -65,6 +65,21 @@ public sealed class InfluxDbConfiguration
     public long BatchThresholdBytes { get; set; } = 4 * 1024 * 1024;
 
     /// <summary>
+    /// Gets or sets the maximum age in milliseconds for a batch before it is sent.
+    /// The batch is sent when either this time elapses since the first entry was collected,
+    /// OR the <see cref="BatchThresholdBytes"/> is reached, whichever comes first.
+    /// Defaults to 60000 ms (1 minute). Set to 0 for immediate sending.
+    /// </summary>
+    public int MaxBatchAgeMs { get; set; } = 60000;
+
+    /// <summary>
+    /// Gets or sets the timeout in milliseconds for graceful shutdown.
+    /// During shutdown, the consumer will attempt to flush pending entries within this timeout.
+    /// Defaults to 5000 ms (5 seconds). Set to 0 to skip graceful flush.
+    /// </summary>
+    public int GracefulShutdownTimeoutMs { get; set; } = 5000;
+
+    /// <summary>
     /// Gets or sets optional static tags to include in every measurement.
     /// These tags are added alongside the automatic ck_domain, ck_environment, ck_party, and meter tags.
     /// <para>

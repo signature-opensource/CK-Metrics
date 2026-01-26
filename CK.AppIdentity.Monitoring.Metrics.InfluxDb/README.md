@@ -23,7 +23,9 @@ Add the InfluxDB consumer configuration to your AppIdentity local configuration:
         "UseGzip": true,
         "FlushIntervalMs": 1000,
         "RetryDelayMs": 2000,
-        "BatchThresholdBytes": 4194304
+        "BatchThresholdBytes": 4194304,
+        "MaxBatchAgeMs": 60000,
+        "GracefulShutdownTimeoutMs": 5000
       }
     }
   }
@@ -42,9 +44,11 @@ Add the InfluxDB consumer configuration to your AppIdentity local configuration:
 | `Username` | - | Username for basic auth (alternative to Token) |
 | `Password` | - | Password for basic auth |
 | `UseGzip` | `true` | Compress HTTP requests with gzip |
-| `FlushIntervalMs` | `1000` | Maximum delay between flushes |
+| `FlushIntervalMs` | `1000` | Cooldown between batches after successful send |
 | `RetryDelayMs` | `2000` | Delay before retrying after failure |
 | `BatchThresholdBytes` | `4194304` | Size threshold for batching (4 MiB) |
+| `MaxBatchAgeMs` | `60000` | Max time (ms) entries can accumulate before sending. Set to `0` for immediate sending. |
+| `GracefulShutdownTimeoutMs` | `5000` | Max time (ms) to wait for final flush on shutdown. Set to `0` to skip. |
 | `Tags` | - | Optional static tags added to every measurement. Values support environment variables (e.g., `%COMPUTERNAME%`). |
 
 ## Line Protocol Format
