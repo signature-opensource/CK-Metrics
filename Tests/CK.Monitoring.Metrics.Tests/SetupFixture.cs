@@ -10,12 +10,12 @@ public class SetupFixture
     [OneTimeSetUp]
     public void RunBeforeAnyTests()
     {
-        ActivityMonitor.Tags.AddFilter( DotNetMetrics.MetricsTag, new LogClamper( LogFilter.Debug, true ) );
+        ActivityMonitor.Tags.AddFilter( DotNetMetrics.MetricsInternalTag, new LogClamper( LogFilter.Debug, true ) );
     }
 
     [OneTimeTearDown]
     public void RunAfterAnyTests()
     {
-        ActivityMonitor.Tags.RemoveFilter( DotNetMetrics.MetricsTag );
+        ActivityMonitor.Tags.RemoveFilter( DotNetMetrics.MetricsInternalTag );
     }
 }

@@ -178,7 +178,7 @@ public sealed class CsvMetricsConsumerFeatureDriver : ApplicationIdentityFeature
     /// </remarks>
     protected override async Task<bool> SetupAsync( FeatureLifetimeContext context )
     {
-        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsInternalTag );
 
         // -------------------------------------------------------------------------
         // Check if MetricsFeatureDriver has a FasterLog
@@ -339,7 +339,7 @@ public sealed class CsvMetricsConsumerFeatureDriver : ApplicationIdentityFeature
     /// </remarks>
     protected override async Task TeardownAsync( FeatureLifetimeContext context )
     {
-        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsInternalTag );
 
         if( _consumer != null )
         {

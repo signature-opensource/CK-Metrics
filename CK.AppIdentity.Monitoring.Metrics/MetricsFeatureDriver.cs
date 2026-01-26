@@ -134,7 +134,7 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
     /// <inheritdoc />
     protected override async Task<bool> SetupAsync( FeatureLifetimeContext context )
     {
-        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsInternalTag );
 
         // Read configuration from the Local:Metrics section.
         var metricsSection = ApplicationIdentityService.LocalConfiguration.Configuration.GetSection( "Metrics" );
@@ -284,7 +284,7 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
     /// <inheritdoc />
     protected override async Task TeardownAsync( FeatureLifetimeContext context )
     {
-        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsInternalTag );
 
         if( _log == null ) return;
 

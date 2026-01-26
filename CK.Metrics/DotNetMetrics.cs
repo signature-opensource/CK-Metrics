@@ -15,6 +15,7 @@ public static partial class DotNetMetrics
 {
     static readonly MeterListener _listener;
     static CKTrait _tag;
+    static CKTrait _internalTag;
     static string? ThisFile( [CallerFilePath] string? path = null ) => path;
     static Dictionary<Meter,MeterState> _meters;
     static ConcurrentDictionary<Instrument, InstrumentState> _instruments;
@@ -24,9 +25,18 @@ public static partial class DotNetMetrics
     static ImmutableArray<(InstrumentMatcher, InstrumentConfiguration)> _currentConfigurations;
 
     /// <summary>
-    /// Gets the "Metrics" tag.
+    /// Gets the "Metrics" tag used for actual metric entries (meter/instrument creation, measurements).
     /// </summary>
     public static CKTrait MetricsTag => _tag;
+
+    /// <summary>
+    /// Gets the "MetricsInternal" tag used for internal/diagnostic logging.
+    /// <para>
+    /// This tag has a default filter of <see cref="LogFilter.Monitor"/> (groups: Trace, lines: Warn)
+    /// to reduce noise from internal logs while keeping warnings and errors visible.
+    /// </para>
+    /// </summary>
+    public static CKTrait MetricsInternalTag => _internalTag;
 
     /// <summary>
     /// Defaults to 255. 
@@ -80,7 +90,8 @@ public static partial class DotNetMetrics
         AttributeValueLengthLimit = 1023;
 
         _tag = ActivityMonitor.Tags.Register( "Metrics" );
-        ActivityMonitor.Tags.AddDefaultFilter( _tag, new LogClamper( LogFilter.Monitor, true ) );
+        _internalTag = ActivityMonitor.Tags.Register( "MetricsInternal" );
+        ActivityMonitor.Tags.AddDefaultFilter( _internalTag, new LogClamper( LogFilter.Monitor, true ) );
         _filePath = ThisFile() ?? "DotNetMetrics.cs";
         _meters = new Dictionary<Meter, MeterState>();
         _instruments = new ConcurrentDictionary<Instrument, InstrumentState>();
@@ -243,14 +254,14 @@ public static partial class DotNetMetrics
                 return instrument.SetConfiguration( monitor, _listener, c, false );
             }
         }
-        monitor.Debug( _tag, $"No matching configuration for {(instrument.IsEnabled ? "en" : "dis")}abled instrument '{instrument.Info.FullName}'." );
+        monitor.Debug( _internalTag, $"No matching configuration for {(instrument.IsEnabled ? "en" : "dis")}abled instrument '{instrument.Info.FullName}'." );
         return false;
     }
 
     // Called from the MicroAgent.
     static void Apply( ActivityMonitor monitor, MetricsConfiguration configuration )
     {
-        using var _t = monitor.TemporarilySetAutoTags( _tag );
+        using var _t = monitor.TemporarilySetAutoTags( _internalTag );
         using var _ = monitor.OpenTrace( "Applying metrics configuration." );
         // Take a snapshot of the MeterState and work on it. The InstrumentState list of each MeterState
         // is thread safe by design (append only single linked list). Instruments concurently published

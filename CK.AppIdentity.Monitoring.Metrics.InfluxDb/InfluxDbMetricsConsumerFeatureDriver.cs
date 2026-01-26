@@ -55,7 +55,7 @@ public sealed class InfluxDbMetricsConsumerFeatureDriver : ApplicationIdentityFe
     /// <inheritdoc />
     protected override async Task<bool> SetupAsync( FeatureLifetimeContext context )
     {
-        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsInternalTag );
 
         // Check if MetricsFeatureDriver has a FasterLog
         if( _metricsDriver.FasterLog == null )
@@ -165,7 +165,7 @@ public sealed class InfluxDbMetricsConsumerFeatureDriver : ApplicationIdentityFe
     /// <inheritdoc />
     protected override async Task TeardownAsync( FeatureLifetimeContext context )
     {
-        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsTag );
+        using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsInternalTag );
 
         if( _consumer != null )
         {
