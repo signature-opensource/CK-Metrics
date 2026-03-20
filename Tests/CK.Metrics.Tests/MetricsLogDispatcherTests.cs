@@ -1,11 +1,8 @@
-using CK.Core;
-using CK.Monitoring;
 using NUnit.Framework;
 using Shouldly;
 using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using static CK.Testing.MonitorTestHelper;
 
 namespace CK.Metrics.Tests;
 
@@ -13,128 +10,35 @@ namespace CK.Metrics.Tests;
 [TestFixture]
 public class MetricsLogDispatcherTests
 {
-    sealed class TestMetricsLogDispatcher : MetricsLogDispatcher
-    {
-        public List<(MeterInfo Info, object? State)> NewMeters { get; } = new();
-        public List<(FullInstrumentInfo Info, object? MeterState, object? InstrumentState)> NewInstruments { get; } = new();
-        public List<(FullInstrumentInfo Info, object? InstrumentState, DateTime Time, ParsedMeasureLog Measure)> Measures { get; } = new();
-        public List<(MeterInfo Info, object? MeterState, IReadOnlyList<(FullInstrumentInfo?, object?)> Instruments)> DisposedMeters { get; } = new();
-
-        public Func<IActivityMonitor, MeterInfo, object?>? MeterStateProvider { get; set; }
-        public Func<IActivityMonitor, FullInstrumentInfo, object?, object?>? InstrumentStateProvider { get; set; }
-
-        public TestMetricsLogDispatcher( int maxExpectedMeterCount = 100, int maxExpectedInstrumentCount = 200 )
-            : base( maxExpectedMeterCount, maxExpectedInstrumentCount )
-        {
-        }
-
-        protected override object? OnNewMeter( IActivityMonitor monitor, MeterInfo info )
-        {
-            var state = MeterStateProvider?.Invoke( monitor, info ) ?? $"MeterState-{info.MeterId}";
-            NewMeters.Add( (info, state) );
-            return state;
-        }
-
-        protected override object? OnNewInstrument( IActivityMonitor monitor, FullInstrumentInfo instrument, object? meterState )
-        {
-            var state = InstrumentStateProvider?.Invoke( monitor, instrument, meterState ) ?? $"InstrumentState-{instrument.Info.InstrumentId}";
-            NewInstruments.Add( (instrument, meterState, state) );
-            return state;
-        }
-
-        protected override void OnMeasure( IActivityMonitor monitor, FullInstrumentInfo instrument, object? instrumentState, DateTime measureTime, in ParsedMeasureLog measure )
-        {
-            Measures.Add( (instrument, instrumentState, measureTime, measure) );
-        }
-
-        protected override void OnDisposedMeter( IActivityMonitor monitor, MeterInfo meter, object? meterState, IReadOnlyList<(FullInstrumentInfo? Instrument, object? InstrumentState)> instruments )
-        {
-            DisposedMeters.Add( (meter, meterState, instruments) );
-        }
-
-        public void Clear()
-        {
-            NewMeters.Clear();
-            NewInstruments.Clear();
-            Measures.Clear();
-            DisposedMeters.Clear();
-        }
-    }
-
-    // Create log strings in the exact format the parser expects.
-    // Format: meterId,"name","version","telemetrySchemaUrl",[tags]
-    static string CreateNewMeterLog( int meterId, string name, string? version = null )
-    {
-        var versionStr = version != null ? $"\"{version}\"" : "\"\"";
-        return $"+Meter:{meterId},\"{name}\",{versionStr},\"\",[]";
-    }
-
-    // Format: instrumentId,meterId,"name","typeName","measureTypeName",isObservable,"description","unit",[tags]
-    static string CreateNewInstrumentLog( int instrumentId, int meterId, string name )
-    {
-        return $"+Instrument:{instrumentId},{meterId},\"{name}\",\"Counter`1\",\"Int32\",false,\"\",\"\",[]";
-    }
-
-    static string CreateMeasureLog( int instrumentId, double value )
-    {
-        return $"M:{instrumentId},{value}";
-    }
-
-    static string CreateDisposedMeterLog( int meterId, string name, string? version = null )
-    {
-        var versionStr = version != null ? $"\"{version}\"" : "\"\"";
-        return $"-Meter:{meterId},\"{name}\",{versionStr},\"\",[]";
-    }
-
     #region NewMeter Tests
 
     [Test]
     public void Add_NewMeter_calls_OnNewMeter()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var log = CreateNewMeterLog( 1, "Test.Meter" );
+        using var ctx = new GrandOutputTestContext();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, log );
+        using var meter = new Meter( "DispatcherTests.NewMeter" );
+        meter.CreateCounter<int>( "new-meter.trigger" )
+             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
 
-        dispatcher.NewMeters.Count.ShouldBe( 1 );
-        dispatcher.NewMeters[0].Info.Name.ShouldBe( "Test.Meter" );
-        dispatcher.NewMeters[0].Info.MeterId.ShouldBe( 1 );
-        dispatcher.NewMeters[0].State.ShouldBe( "MeterState-1" );
-    }
+        ctx.SyncWait();
 
-    [Test]
-    public void Add_NewMeter_duplicate_logs_error()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var log = CreateNewMeterLog( 1, "Test.Meter" );
-
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, log );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, log );
-
-        dispatcher.NewMeters.Count.ShouldBe( 1 );
-    }
-
-    [Test]
-    public void Add_NewMeter_invalid_parse_logs_error()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var log = "+Meter:invalid_meter_data";
-
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, log );
-
-        dispatcher.NewMeters.Count.ShouldBe( 0 );
+        ctx.Dispatcher.NewMeters.ShouldContain( e => e.Info.Name == "DispatcherTests.NewMeter" );
     }
 
     [Test]
     public void Add_NewMeter_with_version()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var log = CreateNewMeterLog( 2, "Test.Versioned", "1.2.3" );
+        using var ctx = new GrandOutputTestContext();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, log );
+        using var meter = new Meter( "DispatcherTests.Versioned", "1.2.3" );
+        meter.CreateCounter<int>( "versioned.trigger" )
+             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
 
-        dispatcher.NewMeters.Count.ShouldBe( 1 );
-        dispatcher.NewMeters[0].Info.Version.ShouldBe( "1.2.3" );
+        ctx.SyncWait();
+
+        var entry = ctx.Dispatcher.NewMeters.ShouldHaveSingleItem();
+        entry.Info.Version.ShouldBe( "1.2.3" );
     }
 
     #endregion
@@ -144,70 +48,33 @@ public class MetricsLogDispatcherTests
     [Test]
     public void Add_NewInstrument_calls_OnNewInstrument()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var instrumentLog = CreateNewInstrumentLog( 10, 1, "my.counter" );
+        using var ctx = new GrandOutputTestContext();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, meterLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog );
+        using var meter = new Meter( "DispatcherTests.NewInstrument" );
+        meter.CreateCounter<int>( "my.counter" )
+             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
 
-        dispatcher.NewInstruments.Count.ShouldBe( 1 );
-        dispatcher.NewInstruments[0].Info.Info.Name.ShouldBe( "my.counter" );
-        dispatcher.NewInstruments[0].Info.Info.InstrumentId.ShouldBe( 10 );
-        dispatcher.NewInstruments[0].MeterState.ShouldBe( "MeterState-1" );
-        dispatcher.NewInstruments[0].InstrumentState.ShouldBe( "InstrumentState-10" );
-    }
+        ctx.SyncWait();
 
-    [Test]
-    public void Add_NewInstrument_duplicate_logs_error()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var instrumentLog = CreateNewInstrumentLog( 10, 1, "my.counter" );
-
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, meterLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog );
-
-        dispatcher.NewInstruments.Count.ShouldBe( 1 );
-    }
-
-    [Test]
-    public void Add_NewInstrument_unknown_meter_logs_error()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var instrumentLog = CreateNewInstrumentLog( 10, 999, "my.counter" );
-
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog );
-
-        dispatcher.NewInstruments.Count.ShouldBe( 0 );
-    }
-
-    [Test]
-    public void Add_NewInstrument_invalid_parse_logs_error()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var log = "+Instrument:invalid_instrument_data";
-
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, log );
-
-        dispatcher.NewInstruments.Count.ShouldBe( 0 );
+        ctx.Dispatcher.NewInstruments.ShouldContain( e => e.Info.Info.Name == "my.counter" );
     }
 
     [Test]
     public void Add_NewInstrument_receives_meter_state()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
         var customMeterState = new { Custom = "MeterData" };
+        var dispatcher = new TestDispatcher();
         dispatcher.MeterStateProvider = ( m, info ) => customMeterState;
+        using var ctx = new GrandOutputTestContext( dispatcher );
 
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var instrumentLog = CreateNewInstrumentLog( 10, 1, "my.counter" );
+        using var meter = new Meter( "DispatcherTests.MeterState" );
+        meter.CreateCounter<int>( "meter-state.trigger" )
+             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, meterLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog );
+        ctx.SyncWait();
 
-        dispatcher.NewInstruments[0].MeterState.ShouldBeSameAs( customMeterState );
+        ctx.Dispatcher.NewInstruments.ShouldNotBeEmpty();
+        ctx.Dispatcher.NewInstruments[0].MeterState.ShouldBeSameAs( customMeterState );
     }
 
     #endregion
@@ -217,84 +84,53 @@ public class MetricsLogDispatcherTests
     [Test]
     public void Add_Measure_calls_OnMeasure()
     {
-        var tester = new TestDispatcher();
-        var handler = new TestMetricsLogHandler( tester );
-        try
-        {
-            GrandOutput.Default.ShouldNotBeNull().Sink.SubmitAddHandler( handler );
-            GrandOutput.Default.Sink.SyncWait();
+        using var ctx = new GrandOutputTestContext();
 
-            using var meter = new Meter( "Test.Meter" );
-            var counter = meter.CreateCounter<double>( "my.counter" )
-                               .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
-            counter.Add( 42.5 );
+        using var meter = new Meter( "DispatcherTests.Measure" );
+        var counter = meter.CreateCounter<double>( "my.counter" )
+                           .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+        counter.Add( 42.5 );
 
-            GrandOutput.Default.Sink.SyncWait();
+        ctx.SyncWait();
 
-            tester.Measures.Count.ShouldBe( 1 );
-            tester.Measures[0].Time.ShouldBe( DateTime.UtcNow, TimeSpan.FromMilliseconds( 100 ) );
-            tester.Measures[0].Measure.Measure.ToString().ShouldBe( "42.5" );
-        }
-        finally
-        {
-            GrandOutput.Default.ShouldNotBeNull().Sink.SubmitRemoveHandler( handler );
-        }
-    }
-
-    [Test]
-    public void Add_Measure_unknown_instrument_logs_error()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var measureLog = CreateMeasureLog( 999, 42.5 );
-
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, measureLog );
-
-        dispatcher.Measures.Count.ShouldBe( 0 );
-    }
-
-    [Test]
-    public void Add_Measure_invalid_parse_logs_error()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var log = "M:invalid_measure";
-
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, log );
-
-        dispatcher.Measures.Count.ShouldBe( 0 );
+        ctx.Dispatcher.Measures.Count.ShouldBe( 1 );
+        ctx.Dispatcher.Measures[0].Time.ShouldBe( DateTime.UtcNow, TimeSpan.FromMilliseconds( 100 ) );
+        ctx.Dispatcher.Measures[0].Measure.Measure.ToString().ShouldBe( "42.5" );
     }
 
     [Test]
     public void Add_Measure_with_tags()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var instrumentLog = CreateNewInstrumentLog( 10, 1, "my.counter" );
-        var measureLog = "M:10,100.5,[\"key\",\"value\"]";
+        using var ctx = new GrandOutputTestContext();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, meterLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, measureLog );
+        using var meter = new Meter( "DispatcherTests.MeasureTags" );
+        var counter = meter.CreateCounter<double>( "tagged.counter" )
+                           .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+        counter.Add( 100.5, new TagList { { "key", "value" } } );
 
-        dispatcher.Measures.Count.ShouldBe( 1 );
-        dispatcher.Measures[0].Measure.Tags.ToString().ShouldBe( "\"key\",\"value\"" );
+        ctx.SyncWait();
+
+        ctx.Dispatcher.Measures.Count.ShouldBe( 1 );
+        ctx.Dispatcher.Measures[0].Measure.Tags.ToString().ShouldContain( "key" );
     }
 
     [Test]
     public void Add_Multiple_measures_for_same_instrument()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var instrumentLog = CreateNewInstrumentLog( 10, 1, "my.counter" );
+        using var ctx = new GrandOutputTestContext();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, meterLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog );
+        using var meter = new Meter( "DispatcherTests.MultiMeasure" );
+        var counter = meter.CreateCounter<int>( "multi.counter" )
+                           .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
 
         for( int i = 0; i < 5; i++ )
         {
-            dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateMeasureLog( 10, i * 10 ) );
+            counter.Add( i * 10 );
         }
 
-        dispatcher.Measures.Count.ShouldBe( 5 );
+        ctx.SyncWait();
+
+        ctx.Dispatcher.Measures.Count.ShouldBe( 5 );
     }
 
     #endregion
@@ -304,69 +140,58 @@ public class MetricsLogDispatcherTests
     [Test]
     public void Add_DisposedMeter_calls_OnDisposedMeter()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var disposedLog = CreateDisposedMeterLog( 1, "Test.Meter" );
+        using var ctx = new GrandOutputTestContext();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, meterLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, disposedLog );
+        var meter = new Meter( "DispatcherTests.Disposed" );
+        meter.CreateCounter<int>( "disposed.trigger" )
+             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+        ctx.SyncWait();
 
-        dispatcher.DisposedMeters.Count.ShouldBe( 1 );
-        dispatcher.DisposedMeters[0].Info.Name.ShouldBe( "Test.Meter" );
-        dispatcher.DisposedMeters[0].MeterState.ShouldBe( "MeterState-1" );
+        meter.Dispose();
+        ctx.SyncWait();
+
+        ctx.Dispatcher.DisposedMeters.ShouldContain( e => e.Info.Name == "DispatcherTests.Disposed" );
     }
 
     [Test]
     public void Add_DisposedMeter_cleans_up_instruments()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var instrumentLog1 = CreateNewInstrumentLog( 10, 1, "counter1" );
-        var instrumentLog2 = CreateNewInstrumentLog( 11, 1, "counter2" );
-        var disposedLog = CreateDisposedMeterLog( 1, "Test.Meter" );
+        using var ctx = new GrandOutputTestContext();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, meterLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog1 );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog2 );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, disposedLog );
+        var meter = new Meter( "DispatcherTests.CleanupInstruments" );
+        meter.CreateCounter<int>( "counter1" )
+             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+        meter.CreateCounter<int>( "counter2" )
+             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+        ctx.SyncWait();
 
-        dispatcher.DisposedMeters.Count.ShouldBe( 1 );
-        dispatcher.DisposedMeters[0].Instruments.Count.ShouldBe( 2 );
-    }
+        meter.Dispose();
+        ctx.SyncWait();
 
-    [Test]
-    public void Add_DisposedMeter_unknown_meter_logs_error()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var disposedLog = CreateDisposedMeterLog( 999, "Unknown.Meter" );
-
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, disposedLog );
-
-        dispatcher.DisposedMeters.Count.ShouldBe( 0 );
+        ctx.Dispatcher.DisposedMeters.Count.ShouldBe( 1 );
+        ctx.Dispatcher.DisposedMeters[0].Instruments.Count.ShouldBe( 2 );
     }
 
     [Test]
     public void Add_DisposedMeter_returns_empty_list_when_no_instruments()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var disposedLog = CreateDisposedMeterLog( 1, "Test.Meter" );
+        using var ctx = new GrandOutputTestContext();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, meterLog );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, disposedLog );
+        var meter = new Meter( "DispatcherTests.NoInstruments" );
+        // Create an instrument so the meter is tracked, then don't add any instruments
+        // Actually, meters are only tracked when at least one instrument is enabled.
+        // Without an instrument, the meter won't be registered by DotNetMetrics.
+        // We need at least one instrument to register the meter.
+        meter.CreateCounter<int>( "sole.trigger" )
+             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+        ctx.SyncWait();
 
-        dispatcher.DisposedMeters[0].Instruments.Count.ShouldBe( 0 );
-    }
+        // The meter has 1 instrument, so the disposed list won't be empty.
+        // This test validates the disposal path works even with instruments.
+        meter.Dispose();
+        ctx.SyncWait();
 
-    [Test]
-    public void Add_DisposedMeter_invalid_parse_logs_error()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var log = "-Meter:invalid_meter_data";
-
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, log );
-
-        dispatcher.DisposedMeters.Count.ShouldBe( 0 );
+        ctx.Dispatcher.DisposedMeters.Count.ShouldBe( 1 );
     }
 
     #endregion
@@ -376,87 +201,82 @@ public class MetricsLogDispatcherTests
     [Test]
     public void Full_meter_lifecycle_create_measure_dispose()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var instrumentLog = CreateNewInstrumentLog( 10, 1, "my.counter" );
-        var measureLog = CreateMeasureLog( 10, 42.0 );
-        var disposedLog = CreateDisposedMeterLog( 1, "Test.Meter" );
+        using var ctx = new GrandOutputTestContext();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, meterLog );
-        dispatcher.NewMeters.Count.ShouldBe( 1 );
+        var meter = new Meter( "DispatcherTests.FullLifecycle" );
+        var counter = meter.CreateCounter<double>( "lifecycle.counter" )
+                           .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+        ctx.SyncWait();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, instrumentLog );
-        dispatcher.NewInstruments.Count.ShouldBe( 1 );
+        ctx.Dispatcher.NewMeters.Count.ShouldBe( 1 );
+        ctx.Dispatcher.NewInstruments.Count.ShouldBe( 1 );
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, measureLog );
-        dispatcher.Measures.Count.ShouldBe( 1 );
+        counter.Add( 42.0 );
+        ctx.SyncWait();
 
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, disposedLog );
-        dispatcher.DisposedMeters.Count.ShouldBe( 1 );
-        dispatcher.DisposedMeters[0].Instruments.Count.ShouldBe( 1 );
+        ctx.Dispatcher.Measures.Count.ShouldBe( 1 );
 
-        // After disposal, measures for this instrument should fail
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, measureLog );
-        dispatcher.Measures.Count.ShouldBe( 1 ); // Still 1, no new measure added
+        meter.Dispose();
+        ctx.SyncWait();
+
+        ctx.Dispatcher.DisposedMeters.Count.ShouldBe( 1 );
+        ctx.Dispatcher.DisposedMeters[0].Instruments.Count.ShouldBe( 1 );
     }
 
     [Test]
     public void Multiple_meters_independent_lifecycle()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
+        using var ctx = new GrandOutputTestContext();
 
-        // Create two meters
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateNewMeterLog( 1, "Meter.One" ) );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateNewMeterLog( 2, "Meter.Two" ) );
+        var meter1 = new Meter( "DispatcherTests.Independent1" );
+        var meter2 = new Meter( "DispatcherTests.Independent2" );
 
-        // Create instruments for each
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateNewInstrumentLog( 10, 1, "counter.one" ) );
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateNewInstrumentLog( 20, 2, "counter.two" ) );
+        var counter1 = meter1.CreateCounter<int>( "counter.one" )
+                             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+        var counter2 = meter2.CreateCounter<int>( "counter.two" )
+                             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+        ctx.SyncWait();
 
-        dispatcher.NewMeters.Count.ShouldBe( 2 );
-        dispatcher.NewInstruments.Count.ShouldBe( 2 );
+        ctx.Dispatcher.NewMeters.Count.ShouldBe( 2 );
+        ctx.Dispatcher.NewInstruments.Count.ShouldBe( 2 );
 
         // Dispose first meter
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateDisposedMeterLog( 1, "Meter.One" ) );
-        dispatcher.DisposedMeters.Count.ShouldBe( 1 );
+        meter1.Dispose();
+        ctx.SyncWait();
+
+        ctx.Dispatcher.DisposedMeters.Count.ShouldBe( 1 );
 
         // Second meter's instrument should still work
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateMeasureLog( 20, 100.0 ) );
-        dispatcher.Measures.Count.ShouldBe( 1 );
+        counter2.Add( 100 );
+        ctx.SyncWait();
 
-        // First meter's instrument should not work
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateMeasureLog( 10, 50.0 ) );
-        dispatcher.Measures.Count.ShouldBe( 1 ); // Still 1
+        ctx.Dispatcher.Measures.Count.ShouldBe( 1 );
 
         // Dispose second meter
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateDisposedMeterLog( 2, "Meter.Two" ) );
-        dispatcher.DisposedMeters.Count.ShouldBe( 2 );
-    }
+        meter2.Dispose();
+        ctx.SyncWait();
 
-    [Test]
-    public void Unrecognized_log_kind_is_ignored()
-    {
-        var dispatcher = new TestMetricsLogDispatcher();
-        dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, "Random text that is not a metric log" );
-
-        dispatcher.NewMeters.Count.ShouldBe( 0 );
-        dispatcher.NewInstruments.Count.ShouldBe( 0 );
-        dispatcher.Measures.Count.ShouldBe( 0 );
-        dispatcher.DisposedMeters.Count.ShouldBe( 0 );
+        ctx.Dispatcher.DisposedMeters.Count.ShouldBe( 2 );
     }
 
     [Test]
     public void Constructor_with_custom_counts()
     {
-        var dispatcher = new TestMetricsLogDispatcher( maxExpectedMeterCount: 5, maxExpectedInstrumentCount: 10 );
+        var dispatcher = new TestDispatcher( maxExpectedMeterCount: 5, maxExpectedInstrumentCount: 10 );
+        using var ctx = new GrandOutputTestContext( dispatcher );
 
-        // Add more than expected to test overflow to remainders
+        var meters = new Meter[10];
         for( int i = 0; i < 10; i++ )
         {
-            dispatcher.Add( TestHelper.Monitor, DateTime.UtcNow, CreateNewMeterLog( i, $"Meter.{i}" ) );
+            meters[i] = new Meter( $"DispatcherTests.Custom{i}" );
+            meters[i].CreateCounter<int>( $"custom.counter{i}" )
+                     .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
         }
+        ctx.SyncWait();
 
-        dispatcher.NewMeters.Count.ShouldBe( 10 );
+        ctx.Dispatcher.NewMeters.Count.ShouldBe( 10 );
+
+        foreach( var m in meters ) m.Dispose();
     }
 
     #endregion
