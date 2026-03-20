@@ -40,10 +40,10 @@ Instruments are **disabled by default**. You can enable them in two ways:
 **Option 1: Inline with `DefaultConfigure()` (recommended for producer-owned instruments)**
 
 ```csharp
-var counter = meter.CreateCounter<int>("orders.completed")
-    .DefaultConfigure(InstrumentConfiguration.BasicEnabled);
+var counter = meter.CreateCounter<int>( "orders.completed" )
+                   .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
 
-counter.Add(1); // Measurement is recorded
+counter.Add( 1 ); // Measurement is recorded
 ```
 
 The `DefaultConfigure()` extension method is fluent and applies the configuration immediately
@@ -55,7 +55,7 @@ if no existing matching configuration exists. It works with all instrument types
 ```csharp
 var config = new MetricsConfiguration();
 config.AutoObservableTimer = 50; // Collect observables every 50ms
-config.Configurations.Add((new InstrumentMatcher("MyApp.*"), InstrumentConfiguration.BasicEnabled));
+config.Configurations.Add( (new InstrumentMatcher("MyApp.*"), InstrumentConfiguration.BasicEnabled) );
 DotNetMetrics.ApplyConfiguration(config);
 ```
 
@@ -65,14 +65,14 @@ Use the standard .NET APIs for recording:
 
 ```csharp
 // Counters: Add values (cumulative)
-counter.Add(1);
-counter.Add(5, new KeyValuePair<string, object?>("region", "us_east"));
+counter.Add( 1 );
+counter.Add( 5, new KeyValuePair<string, object?>("region", "us_east") );
 
 // Gauges: Record point-in-time values
-gauge.Record(42);
+gauge.Record( 42 );
 
 // Histograms: Record distributions
-histogram.Record(123.45);
+histogram.Record( 123.45 );
 ```
 
 ### Observable Instruments
@@ -80,15 +80,14 @@ histogram.Record(123.45);
 For instruments that pull values on demand:
 
 ```csharp
-var memoryGauge = meter.CreateObservableGauge<long>(
-    "process.memory.used",
-    () => GC.GetTotalMemory(false),
-    "bytes"
-).DefaultConfigure(InstrumentConfiguration.BasicEnabled);
+var memoryGauge = meter.CreateObservableGauge<long>( "process.memory.used",
+                                                     () => GC.GetTotalMemory(false),
+                                                     "bytes" )
+                       .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
 
 // Enable automatic periodic collection
 var config = new MetricsConfiguration { AutoObservableTimer = 100 }; // every 100ms
-DotNetMetrics.ApplyConfiguration(config);
+DotNetMetrics.ApplyConfiguration( config );
 ```
 
 ## How It Works
@@ -98,8 +97,8 @@ CK.Metrics sets up a global `MeterListener` at static initialization that:
 1. **Captures all Meters and Instruments** as they are created via `System.Diagnostics.Metrics`
 2. **Validates naming** against strict OpenTelemetry-compatible patterns (see Restrictions)
 3. **Logs metrics events** through `ActivityMonitor.StaticLogger` using two tags:
-   - `MetricsTag` ("Metrics"): for actual metric entries (meter/instrument creation, measurements)
-   - `MetricsInternalTag` ("MetricsInternal"): for internal/diagnostic logging with a default `LogFilter.Monitor` filter (groups: Trace, lines: Warn) to reduce noise
+   - `MetricsTag` ("Metrics"): for actual metric entries (meter/instrument creation, measurements).
+   - `MetricsInternalTag` ("MetricsInternal"): for internal/diagnostic logging with a default `LogFilter.Monitor` filter (groups: Trace, lines: Warn) to reduce noise.
 4. **Applies configurations** to enable/disable instruments based on pattern matching
 
 ### Metric Log Format
@@ -238,7 +237,7 @@ a measure can be `byte`, `short`, `int`, `long`, `float`, `double` and `decimal`
 ### Meter
 
 The meter's name must be a namespace-like simple identifier that cannot be longer than the
-static `int DotNetMetrics.MeterNameLengthLimit` that defaults to 255 charaters.
+static `int DotNetMetrics.MeterNameLengthLimit` that defaults to 255 characters.
 This can be programmatically changed if needed.
 It is checked by `^[a-zA-Z][_a-zA-Z0-9]*(\.[_a-zA-Z0-9]*)*$` regular expression.
 
@@ -250,7 +249,7 @@ The meter's description can be any string (of any length).
 ### Instrument
 
 The instrument's name follows https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax.
-It cannot be longer than 255 charaters.
+It cannot be longer than 255 characters.
 It is checked by `^[a-zA-Z][-_\./a-zA-Z0-9]*$` regular expression.
 
 The instrument's unit (when defined) must be at most 63 characters and can contain any Unicode characters.
@@ -258,17 +257,17 @@ See https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-unit
 
 ### Tags (Attributes)
 
-By defaut, a maximum of 128 tags per meter or instrument is allowed.
+By default, a maximum of 128 tags per meter or instrument is allowed.
 This can be programmatically changed by the static `int DotNetMetrics.AttributeCountLimit` property.
 
 For tag's key ([attribute names](https://opentelemetry.io/docs/specs/semconv/general/naming/) for OpenTelemetry) we
 enforce the [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/general/naming/#recommendations-for-opentelemetry-authors)
-and restricts keys to not be longer than the static `int DotNetMetrics.AttributeNameLengthLimit` that defaults to 255 charaters.
+and restricts keys to not be longer than the static `int DotNetMetrics.AttributeNameLengthLimit` that defaults to 255 characters.
 This can be programmatically changed if needed.
 It is checked by `^[a-z][a-z0-9]*((\.|_)[a-z][a-z0-9]*)*$` regular expression.
 
 Only `long`, `double`, `bool` and `string` (or array of them) are allowed in Tag values (see [OpenTelemetry's attributes]()).
-However, strings cannot be longer than the static `int DotNetMetrics.AttributeValueLengthLimit` that defaults to 1023 charaters.
+However, strings cannot be longer than the static `int DotNetMetrics.AttributeValueLengthLimit` that defaults to 1023 characters.
 This can be programmatically changed if needed.
 
 Notes:

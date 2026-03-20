@@ -48,8 +48,8 @@ public static partial class DotNetMetrics
     /// From https://opentelemetry.io/docs/specs/otel/common/#attribute and https://opentelemetry.io/docs/specs/otel/common/#configurable-parameters
     /// ...but https://opentelemetry.io/docs/specs/otel/metrics/sdk/#attribute-limits: Metrics attributes should have no limit.
     /// <para>
-    /// We currenlty decide to be strict here: a <see cref="CKException"/> is thrown if a <see cref="Meter.Tags"/>
-    /// or <see cref="Instrument.Tags"/> has more attributes than this limit. This can be programatically changed if needed.
+    /// We currently decide to be strict here: a <see cref="CKException"/> is thrown if a <see cref="Meter.Tags"/>
+    /// or <see cref="Instrument.Tags"/> has more attributes than this limit. This can be programmatically changed if needed.
     /// </para>
     /// </summary>
     public static int AttributeCountLimit { get; set; }
@@ -60,7 +60,7 @@ public static partial class DotNetMetrics
     /// <para>
     /// A <see cref="CKException"/> is thrown if a <see cref="Meter.Tags"/>
     /// or <see cref="Instrument.Tags"/> has a key longer than this limit.
-    /// This can be programatically changed if needed.
+    /// This can be programmatically changed if needed.
     /// </para>
     /// </summary>
     public static int AttributeNameLengthLimit { get; set; }
@@ -71,7 +71,7 @@ public static partial class DotNetMetrics
     /// <para>
     /// A <see cref="CKException"/> is thrown if a <see cref="Meter.Tags"/>
     /// or <see cref="Instrument.Tags"/> has a string value longer than this limit.
-    /// This can be programatically changed if needed.
+    /// This can be programmatically changed if needed.
     /// </para>
     /// </summary>
     public static int AttributeValueLengthLimit { get; set; }
@@ -151,7 +151,7 @@ public static partial class DotNetMetrics
     /// Gets the currently available instruments and their configuration.
     /// <para>
     /// This captures a configured state: no configuration are concurrently being applied.
-    /// This is typically useful in tests but in prodution, the synchronous <see cref="GetConfiguration"/>
+    /// This is typically useful in tests but in production, the synchronous <see cref="GetConfiguration"/>
     /// can be called: a "half applied" configuration is a configuration...
     /// </para>
     /// </summary>
@@ -281,14 +281,14 @@ public static partial class DotNetMetrics
         using var _t = monitor.TemporarilySetAutoTags( _internalTag );
         using var _ = monitor.OpenTrace( "Applying metrics configuration." );
         // Take a snapshot of the MeterState and work on it. The InstrumentState list of each MeterState
-        // is thread safe by design (append only single linked list). Instruments concurently published
-        // after their first IntrumentState is considered are simply ignored.
+        // is thread safe by design (append only single linked list). Instruments concurrently published
+        // after their first InstrumentState is considered are simply ignored.
         MeterState[] meters;
         lock( _meters )
         {
             meters = _meters.Values.ToArray();
         }
-        // Also snapshots the instruments so we don't have to bother with concurently published instruments.
+        // Also snapshots the instruments so we don't have to bother with concurrently published instruments.
         var targets = meters.SelectMany( m => m.InstrumentStates ).ToList();
         if( meters.Length == 0 )
         {
