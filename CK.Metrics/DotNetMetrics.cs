@@ -82,8 +82,16 @@ public static partial class DotNetMetrics
     public const int MaxCoolerTimeSpan = 3_600_000;
 
 
+    // True while the static constructor is running. SyncWait() must be skipped
+    // during static init because RunLoopAsync's continuation needs the type
+    // initializer lock which is held by the thread running the static ctor.
+    // See https://github.com/signature-opensource/CK-Metrics/issues/1
+    static volatile bool _staticInitializing;
+
     static DotNetMetrics()
     {
+        _staticInitializing = true;
+
         MeterNameLengthLimit = 255;
         AttributeCountLimit = 128;
         AttributeNameLengthLimit = 255;
@@ -108,6 +116,8 @@ public static partial class DotNetMetrics
         _listener.InstrumentPublished = OnInstrumentPublished;
         _listener.MeasurementsCompleted = OnMeasurementsCompleted;
         _listener.Start();
+
+        _staticInitializing = false;
     }
 
     static void OnObservableTimer( object? state ) => _listener.RecordObservableInstruments();
@@ -208,7 +218,14 @@ public static partial class DotNetMetrics
         SendMetricLog( _newInstrumentPrefix + iState.Info.Info.JsonDescription );
         // OnInstrumentPublished.
         MicroAgent.Push( iState );
-        MicroAgent.SyncWait();
+        // During static initialization, RunLoopAsync's continuation cannot run because
+        // it needs the type initializer lock held by the current thread.
+        // Instruments published during init will be configured asynchronously once
+        // the static ctor completes and the lock is released.
+        if( !_staticInitializing )
+        {
+            MicroAgent.SyncWait();
+        }
     }
 
     static void OnMeasurementsCompleted( Instrument instrument, object? state )
