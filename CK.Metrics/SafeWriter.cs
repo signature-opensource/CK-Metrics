@@ -9,7 +9,7 @@ namespace CK.Metrics;
 /// This Writer is a specification. Its real implementation has yet to be done...
 /// - It must ensure that number formatting uses the <see cref="CultureInfo.InvariantCulture"/>
 /// (that StringBuilder doesn't guaranty).
-/// - It must efficently encode a string.
+/// - It must efficiently encode a string.
 /// - It must be able to write double values with a . (or a Exponent) so that its text differ
 ///   from a long with the same value.
 ///   This is used in tag values to restore type consistently.
@@ -23,17 +23,21 @@ ref struct SafeWriter
         _b = new StringBuilder();
     }
 
-    public void Append( bool v ) => _b.Append( v ? "true" : "false" );
-    public void Append( byte v ) => _b.Append( v );
-    public void Append( short v ) => _b.Append( v );
-    public void Append( int v ) => _b.Append( v );
-    public void Append( long v ) => _b.Append( v );
-    public void Append( float v ) => _b.Append( v );
-    public void Append( double v ) => _b.Append( v );
-    public void Append( decimal v ) => _b.Append( v );
-
     public void Append( char c ) => _b.Append( c );
+
     public void Append( string raw ) => _b.Append( raw );
+
+    public void Append( bool v ) => _b.Append( v ? "true" : "false" );
+
+    public void Append( int v )
+    {
+        _b.Append( v.ToString( CultureInfo.InvariantCulture ) );
+    }
+
+    public void Append( long v )
+    {
+        _b.Append( v.ToString( CultureInfo.InvariantCulture ) );
+    }
 
     public void AppendJsonRawString( string? v )
     {
@@ -54,17 +58,17 @@ ref struct SafeWriter
         }
     }
 
-    public void AppendExplicitDouble( double v )
+    public void Append( double v )
     {
         var s = v.ToString( "G17", CultureInfo.InvariantCulture );
+        _b.Append( s );
         if( !s.Contains( '.' ) && !s.Contains( 'E' ) )
         {
-            s += ".0";
+            _b.Append( ".0" );
         }
-        _b.Append( s );
     }
 
-    public void AppendArrayOfExplicitDouble( double[] a )
+    public void AppendArray( double[] a )
     {
         _b.Append( '[' );
         bool atLeastOne = false;
@@ -72,12 +76,12 @@ ref struct SafeWriter
         {
             if( atLeastOne ) _b.Append( ',' );
             atLeastOne = true;
-            AppendExplicitDouble( d );
+            Append( d );
         }
         _b.Append( ']' );
     }
 
-    public void AppendArrayOfEncodedJsonString( string?[] a )
+    public void AppendArray( string?[] a )
     {
         _b.Append( '[' );
         bool atLeastOne = false;

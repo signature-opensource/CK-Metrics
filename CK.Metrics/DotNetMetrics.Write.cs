@@ -44,7 +44,7 @@ public static partial class DotNetMetrics
                 break;
             case double i:
                 w.Append( ',' );
-                w.AppendExplicitDouble( i );
+                w.Append( i );
                 break;
             case long i:
                 w.Append( ',' );
@@ -52,7 +52,7 @@ public static partial class DotNetMetrics
                 break;
             case double[] a:
                 w.Append( ',' );
-                w.AppendArrayOfExplicitDouble( a );
+                w.AppendArray( a );
                 break;
             case long[] a:
                 w.Append( ',' );
@@ -64,7 +64,7 @@ public static partial class DotNetMetrics
                 break;
             case string[] a:
                 w.Append( ',' );
-                w.AppendArrayOfEncodedJsonString( a );
+                w.AppendArray( a );
                 break;
             default: throw new CKException( $"Invalid attribute value type '{tag.Value.GetType()}'." );
         }

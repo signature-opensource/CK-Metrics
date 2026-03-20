@@ -1,4 +1,5 @@
 using CK.Core;
+using CK.Monitoring;
 using NUnit.Framework;
 using Shouldly;
 using System;
@@ -7,6 +8,7 @@ using System.Diagnostics.Metrics;
 using static CK.Testing.MonitorTestHelper;
 
 namespace CK.Metrics.Tests;
+
 
 [TestFixture]
 public class MetricsLogDispatcherTests
@@ -215,21 +217,28 @@ public class MetricsLogDispatcherTests
     [Test]
     public void Add_Measure_calls_OnMeasure()
     {
-        var dispatcher = new TestMetricsLogDispatcher();
-        var meterLog = CreateNewMeterLog( 1, "Test.Meter" );
-        var instrumentLog = CreateNewInstrumentLog( 10, 1, "my.counter" );
-        var measureLog = CreateMeasureLog( 10, 42.5 );
-        var measureTime = DateTime.UtcNow;
+        var tester = new TestDispatcher();
+        var handler = new TestMetricsLogHandler( tester );
+        try
+        {
+            GrandOutput.Default.ShouldNotBeNull().Sink.SubmitAddHandler( handler );
+            GrandOutput.Default.Sink.SyncWait();
 
-        dispatcher.Add( TestHelper.Monitor, measureTime, meterLog );
-        dispatcher.Add( TestHelper.Monitor, measureTime, instrumentLog );
-        dispatcher.Add( TestHelper.Monitor, measureTime, measureLog );
+            using var meter = new Meter( "Test.Meter" );
+            var counter = meter.CreateCounter<double>( "my.counter" )
+                               .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
+            counter.Add( 42.5 );
 
-        dispatcher.Measures.Count.ShouldBe( 1 );
-        dispatcher.Measures[0].Info.Info.InstrumentId.ShouldBe( 10 );
-        dispatcher.Measures[0].Time.ShouldBe( measureTime );
-        dispatcher.Measures[0].Measure.InstrumentId.ShouldBe( 10 );
-        dispatcher.Measures[0].InstrumentState.ShouldBe( "InstrumentState-10" );
+            GrandOutput.Default.Sink.SyncWait();
+
+            tester.Measures.Count.ShouldBe( 1 );
+            tester.Measures[0].Time.ShouldBe( DateTime.UtcNow, TimeSpan.FromMilliseconds( 100 ) );
+            tester.Measures[0].Measure.Measure.ToString().ShouldBe( "42.5" );
+        }
+        finally
+        {
+            GrandOutput.Default.ShouldNotBeNull().Sink.SubmitRemoveHandler( handler );
+        }
     }
 
     [Test]

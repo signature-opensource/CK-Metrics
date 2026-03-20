@@ -29,14 +29,32 @@ public static partial class DotNetMetrics
 
         internal void HandleMeasure( T measurement, ReadOnlySpan<KeyValuePair<string, object?>> tags )
         {
-            var text = $"M:{_sInstrumentId},{measurement}";
-            if( !tags.IsEmpty )
+            string text;
+            if( measurement is double m )
             {
                 SafeWriter w = new SafeWriter();
-                w.Append( text );
+                w.Append( "M:" );
+                w.Append( _sInstrumentId );
                 w.Append( ',' );
-                WriteTags( ref w, tags );
+                w.Append( m );
+                if( !tags.IsEmpty )
+                {
+                    w.Append( ',' );
+                    WriteTags( ref w, tags );
+                }
                 text = w.ToString();
+            }
+            else
+            {
+                text = $"M:{_sInstrumentId},{measurement}";
+                if( !tags.IsEmpty )
+                {
+                    SafeWriter w = new SafeWriter();
+                    w.Append( text );
+                    w.Append( ',' );
+                    WriteTags( ref w, tags );
+                    text = w.ToString();
+                }
             }
             SendMetricLog( text );
         }
