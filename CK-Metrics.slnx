@@ -1,0 +1,25 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="appveyor.yml" />
+    <File Path="CK.Metrics/README.md" />
+    <File Path="NuGet.config" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/CK.AppIdentity.Monitoring.Metrics.Csv.Tests/CK.AppIdentity.Monitoring.Metrics.Csv.Tests.csproj" />
+    <Project Path="Tests/CK.AppIdentity.Monitoring.Metrics.InfluxDb.Tests/CK.AppIdentity.Monitoring.Metrics.InfluxDb.Tests.csproj" />
+    <Project Path="Tests/CK.AppIdentity.Monitoring.Metrics.Tests/CK.AppIdentity.Monitoring.Metrics.Tests.csproj" />
+    <Project Path="Tests/CK.Metrics.Tests/CK.Metrics.Tests.csproj" />
+    <Project Path="Tests/CK.Monitoring.Metrics.Tests/CK.Monitoring.Metrics.Tests.csproj" />
+  </Folder>
+  <Project Path="CK.AppIdentity.Monitoring.Metrics.Csv/CK.AppIdentity.Monitoring.Metrics.Csv.csproj" />
+  <Project Path="CK.AppIdentity.Monitoring.Metrics.InfluxDb/CK.AppIdentity.Monitoring.Metrics.InfluxDb.csproj" />
+  <Project Path="CK.AppIdentity.Monitoring.Metrics/CK.AppIdentity.Monitoring.Metrics.csproj" />
+  <Project Path="CK.Metrics/CK.Metrics.csproj" />
+  <Project Path="CK.Monitoring.Metrics/CK.Monitoring.Metrics.csproj" />
+</Solution>
