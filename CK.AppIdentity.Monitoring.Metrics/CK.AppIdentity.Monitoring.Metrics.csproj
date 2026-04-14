@@ -9,7 +9,7 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.AppIdentity" Version="0.14.0--ci.6" />
+    <PackageReference Include="CK.AppIdentity" Version="0.14.0--ci.9" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CK.Monitoring.Metrics\CK.Monitoring.Metrics.csproj" />

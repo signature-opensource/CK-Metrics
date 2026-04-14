@@ -6,7 +6,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.AppIdentity.Hosting" Version="0.14.0--ci.6" />
+    <PackageReference Include="CK.AppIdentity.Hosting" Version="0.14.0--ci.9" />
     <PackageReference Include="CK.Testing.Nunit" Version="15.0.0--ci.6" />
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
