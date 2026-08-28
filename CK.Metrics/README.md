@@ -1,4 +1,4 @@
-# CK-Metrics
+# CK.Metrics
 
 Supports [System.Diagnostics.Metrics](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.metrics) with
 a different approach than other metrics collectors and handlers like the ones in [Microsoft.Extensions.Diagnostics.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics.Abstractions).
@@ -266,7 +266,7 @@ and restricts keys to not be longer than the static `int DotNetMetrics.Attribute
 This can be programmatically changed if needed.
 It is checked by `^[a-z][a-z0-9]*((\.|_)[a-z][a-z0-9]*)*$` regular expression.
 
-Only `long`, `double`, `bool` and `string` (or array of them) are allowed in Tag values (see [OpenTelemetry's attributes]()).
+Only `long`, `double`, `bool` and `string` (or array of them) are allowed in Tag values (see OpenTelemetry's attributes).
 However, strings cannot be longer than the static `int DotNetMetrics.AttributeValueLengthLimit` that defaults to 1023 characters.
 This can be programmatically changed if needed.
 
