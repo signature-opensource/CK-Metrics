@@ -11,7 +11,6 @@ by providing a `GrandOutputHandler` that writes metrics to a high-performance [F
 
 This package provides:
 - **MetricsLogHandler**: A sealed `IGrandOutputHandler` that receives metrics from the GrandOutput pipeline and writes them to FasterLog
-- **MetricsLogDispatcher**: A parser for metrics log entries that dispatches to typed callbacks
 
 The handler acts as a **producer only** - it writes metrics entries to FasterLog but does not consume them.
 Consumers are implemented separately (see [CK.AppIdentity.Monitoring.Metrics](https://www.nuget.org/packages/CK.AppIdentity.Monitoring.Metrics)).

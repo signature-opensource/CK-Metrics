@@ -138,7 +138,7 @@ public class MyConsumerFeatureDriver : ApplicationIdentityFeatureDriver
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `retryDelayMs` | 2000 | Delay in ms before retrying after a processing failure |
-| `batchThresholdBytes` | 2 MiB | Size threshold for batching entries |
+| `batchThresholdBytes` | 4 MiB (`2 << 21`) | Size threshold for batching entries |
 | `maxBatchAgeMs` | 60000 | Max time (ms) entries can accumulate before sending. Set to `0` for immediate sending. |
 | `gracefulShutdownTimeoutMs` | 5000 | Max time (ms) to wait for final flush on shutdown. Set to `0` to skip graceful flush. |
 
