@@ -7,7 +7,7 @@
   <ItemGroup>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.AppIdentity" Version="0.14.1" />
+    <PackageReference Include="CK.AppIdentity" Version="0.14.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CK.Monitoring.Metrics\CK.Monitoring.Metrics.csproj" />
