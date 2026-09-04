@@ -1,4 +1,4 @@
-# CK-Metrics
+# CK.Metrics
 
 Supports [System.Diagnostics.Metrics](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.metrics) with
 a different approach than other metrics collectors and handlers like the ones in [Microsoft.Extensions.Diagnostics.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics.Abstractions).
@@ -266,7 +266,7 @@ and restricts keys to not be longer than the static `int DotNetMetrics.Attribute
 This can be programmatically changed if needed.
 It is checked by `^[a-z][a-z0-9]*((\.|_)[a-z][a-z0-9]*)*$` regular expression.
 
-Only `long`, `double`, `bool` and `string` (or array of them) are allowed in Tag values (see [OpenTelemetry's attributes]()).
+Only `long`, `double`, `bool` and `string` (or array of them) are allowed in Tag values (see OpenTelemetry's attributes).
 However, strings cannot be longer than the static `int DotNetMetrics.AttributeValueLengthLimit` that defaults to 1023 characters.
 This can be programmatically changed if needed.
 
@@ -283,29 +283,46 @@ use the companion packages:
 - **CK.Monitoring.Metrics**: Provides `MetricsLogHandler` for the GrandOutput pipeline that writes metrics to FasterLog.
 - **CK.AppIdentity.Monitoring.Metrics**: Full integration with FasterLog lifecycle management and `IMetricsConsumer` interface.
 
-### Full Stack Example
+### What this package does on its own
+
+Enable collection, then measure. This compiles against CK.Metrics alone:
 
 ```csharp
-// 1. Configure GrandOutput with metrics handler
-await using var go = GrandOutput.EnsureActiveDefault(new GrandOutputConfiguration
-{
-    Handlers = { new MetricsLogHandlerConfiguration() }
-});
-
-// 2. Enable metrics collection
+// 1. Enable metrics collection
 DotNetMetrics.ApplyConfiguration(new MetricsConfiguration
 {
     AutoObservableTimer = 50,
     Configurations = { (new InstrumentMatcher("*"), InstrumentConfiguration.BasicEnabled) }
 });
 
-// 3. Create and use metrics
+// 2. Create and use metrics
 using var meter = new Meter("MyApp.Service", "1.0");
 var counter = meter.CreateCounter<int>("requests.total")
     .DefaultConfigure(InstrumentConfiguration.BasicEnabled);
 counter.Add(1);
-// Metrics flow through GrandOutput -> MetricsLogHandler -> FasterLog
+// The measurement is emitted to ActivityMonitor.StaticLogger.
 ```
+
+At this point the measurement is logged and nothing more: this package does not store anything.
+
+### Full stack example
+
+Storing them means putting a handler on the GrandOutput, which is what **CK.Monitoring.Metrics** brings.
+Add that package, and the same code gains a first step:
+
+```csharp
+// Requires CK.Monitoring.Metrics - not part of CK.Metrics.
+await using var go = GrandOutput.EnsureActiveDefault(new GrandOutputConfiguration
+{
+    Handlers = { new MetricsLogHandlerConfiguration() }
+});
+
+// ... then steps 1 and 2 above, unchanged.
+// Metrics now reach MetricsLogHandler. It drops them until a FasterLog is injected into it.
+```
+
+That handler needs a FasterLog injected into it, which **CK.AppIdentity.Monitoring.Metrics** takes care
+of. Both are documented in their own README.
 
 ## Related Packages
 

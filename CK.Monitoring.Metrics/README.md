@@ -3,15 +3,15 @@
 Integrates [CK.Metrics](https://www.nuget.org/packages/CK.Metrics) with [CK.Monitoring](https://www.nuget.org/packages/CK.Monitoring)
 by providing a `GrandOutputHandler` that writes metrics to a high-performance [FasterLog](https://microsoft.github.io/FASTER/docs/fasterlog/).
 
-> **Important:** This package does not work on its own. The `MetricsLogHandler` requires a FasterLog instance
-> to be injected at runtime. Use [CK.AppIdentity.Monitoring.Metrics](https://www.nuget.org/packages/CK.AppIdentity.Monitoring.Metrics)
-> which provides `MetricsFeatureDriver` that manages the FasterLog lifecycle and injects it into the handler automatically.
+> **Important:** `MetricsLogHandler` does not create its FasterLog. The instance must be injected at
+> runtime, and until it is, the handler has nowhere to write. Owning that lifecycle - creating the log,
+> injecting it, disposing it - is deliberately left to whatever hosts the application; the packages
+> listed at the end of this file include one that does it.
 
 ## Overview
 
 This package provides:
 - **MetricsLogHandler**: A sealed `IGrandOutputHandler` that receives metrics from the GrandOutput pipeline and writes them to FasterLog
-- **MetricsLogDispatcher**: A parser for metrics log entries that dispatches to typed callbacks
 
 The handler acts as a **producer only** - it writes metrics entries to FasterLog but does not consume them.
 Consumers are implemented separately (see [CK.AppIdentity.Monitoring.Metrics](https://www.nuget.org/packages/CK.AppIdentity.Monitoring.Metrics)).
@@ -65,12 +65,10 @@ Or simply enable with defaults:
 The handler does not create or own the FasterLog instance. Instead, the FasterLog must be injected at runtime
 by calling `MetricsLogHandler.SetFasterLog(FasterLog)`. Without this injection, the handler silently ignores all metrics entries.
 
-**Recommended approach:** Use [CK.AppIdentity.Monitoring.Metrics](https://www.nuget.org/packages/CK.AppIdentity.Monitoring.Metrics)
-which provides `MetricsFeatureDriver`. This feature driver:
-1. Creates and manages the FasterLog instance
-2. Automatically injects it into the handler via `SetMetricsFasterLogAction` (a `GrandOutputHandlersAction`)
-3. Handles consumer registration and log truncation
-4. Cleans up orphaned consumers on shutdown
+Note the failure mode: no injection is not an error, it is silence. Whatever you build on this handler
+has to own four things - creating the FasterLog, injecting it via a `GrandOutputHandlersAction`,
+registering consumers and truncating the log, and cleaning up orphaned consumers on shutdown. The
+packages listed at the end of this file include one that already does all four.
 
 This design allows:
 - The handler to be configured via standard GrandOutput configuration
