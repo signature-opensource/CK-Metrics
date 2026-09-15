@@ -7,6 +7,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="26.0.3" />
-    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.14" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.12" />
   </ItemGroup>
 </Project>
