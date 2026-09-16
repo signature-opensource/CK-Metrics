@@ -11,6 +11,7 @@ using CK.Metrics;
 using CK.Monitoring.Handlers;
 using FASTER.core;
 using NUnit.Framework;
+using Shouldly;
 using static CK.Testing.MonitorTestHelper;
 
 namespace CK.Monitoring.Metrics.Tests;
@@ -45,7 +46,7 @@ public class MetricsHandlerTests
         var setAction = new SetMetricsFasterLogAction( log );
         go.Sink.Submit( setAction );
         await setAction.Completion;
-        Assert.That( setAction.HandlerFound, Is.True );
+        setAction.HandlerFound.ShouldBeTrue();
 
         DotNetMetrics.ApplyConfiguration( new MetricsConfiguration
         {
@@ -85,7 +86,7 @@ public class MetricsHandlerTests
         }
 
         // Verify entries were written.
-        Assert.That( entries.Count, Is.GreaterThan( 0 ) );
+        entries.Count.ShouldBeGreaterThan( 0 );
 
         // Parse entries using dispatcher.
         var dispatcher = new TestMetricsLogDispatcher();
@@ -96,10 +97,10 @@ public class MetricsHandlerTests
         }
 
         // Verify dispatched entries.
-        Assert.That( dispatcher.NewMeters.Count, Is.EqualTo( meterCount ) );
-        Assert.That( dispatcher.Instruments.Count, Is.EqualTo( meterCount ) );
-        Assert.That( dispatcher.Measures.Count, Is.EqualTo( meterCount * measureCount ) );
-        Assert.That( dispatcher.DisposedMeters.Count, Is.EqualTo( meterCount ) );
+        dispatcher.NewMeters.Count.ShouldBe( meterCount );
+        dispatcher.Instruments.Count.ShouldBe( meterCount );
+        dispatcher.Measures.Count.ShouldBe( meterCount * measureCount );
+        dispatcher.DisposedMeters.Count.ShouldBe( meterCount );
     }
 
     [Test]
@@ -114,7 +115,7 @@ public class MetricsHandlerTests
         var handler = new MetricsLogHandler( new MetricsLogHandlerConfiguration() );
         handler.SetFasterLog( log );
 
-        Assert.Throws<InvalidOperationException>( () => handler.SetFasterLog( log ) );
+        Should.Throw<InvalidOperationException>( () => handler.SetFasterLog( log ) );
     }
 
     [Test]
@@ -126,7 +127,7 @@ public class MetricsHandlerTests
         var newConfig = new MetricsLogHandlerConfiguration { CommitRate = 5 };
         var result = await handler.ApplyConfigurationAsync( TestHelper.Monitor, newConfig );
 
-        Assert.That( result, Is.True );
+        result.ShouldBeTrue();
     }
 
     [Test]
@@ -138,7 +139,7 @@ public class MetricsHandlerTests
         var otherConfig = new TextFileConfiguration { Path = "test" };
         var result = await handler.ApplyConfigurationAsync( TestHelper.Monitor, otherConfig );
 
-        Assert.That( result, Is.False );
+        result.ShouldBeFalse();
     }
 
     string PrepareFasterLogDir()
