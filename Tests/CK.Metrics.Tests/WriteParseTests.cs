@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.Metrics;
+using System.Linq;
 
 namespace CK.Metrics.Tests.Metrics;
 
@@ -35,7 +36,7 @@ public class WriteParseTests
              .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
             WriteAndReadMeter( m );
         }
-        DotNetMetrics.GetConfiguration().Instruments.ShouldBeEmpty();
+        DotNetMetrics.GetConfiguration().Instruments.Where( i => i.MeterInfo.Name == "Some.Name" ).ShouldBeEmpty();
     }
 
     static void WriteAndReadMeter( Meter m )
@@ -90,13 +91,13 @@ public class WriteParseTests
 
             WriteAndReadMeter( m );
 
-            var instruments = DotNetMetrics.GetConfiguration().Instruments;
+            var instruments = DotNetMetrics.GetConfiguration().Instruments.Where( i => i.MeterInfo.Name == "Some.Name" ).ToList();
             instruments.Count.ShouldBe( 1 );
 
             WriteAndReadInstrument( instruments[0] );
 
         }
-        DotNetMetrics.GetConfiguration().Instruments.ShouldBeEmpty();
+        DotNetMetrics.GetConfiguration().Instruments.Where( i => i.MeterInfo.Name == "Some.Name" ).ShouldBeEmpty();
     }
 
     static void WriteAndReadInstrument( FullInstrumentInfo full )

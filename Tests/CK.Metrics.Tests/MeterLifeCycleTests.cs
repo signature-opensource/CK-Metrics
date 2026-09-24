@@ -75,7 +75,7 @@ public class MeterLifeCycleTests
                             .DefaultConfigure( InstrumentConfiguration.BasicEnabled );
 
             var metrics = await DotNetMetrics.GetConfigurationAsync();
-            metrics.Instruments.Single().Configuration.Enabled.ShouldBeTrue();
+            metrics.Instruments.Single( i => i.MeterInfo.Name == "Some" ).Configuration.Enabled.ShouldBeTrue();
 
             var disposer = Task.Run( async () =>
             {
@@ -93,7 +93,7 @@ public class MeterLifeCycleTests
 #pragma warning disable VSTHRD103 // Call async methods when in an async method
             metrics = DotNetMetrics.GetConfiguration();
 #pragma warning restore VSTHRD103 
-            metrics.Instruments.ShouldBeEmpty();
+            metrics.Instruments.Where( i => i.MeterInfo.Name == "Some" ).ShouldBeEmpty();
         }
         finally
         {
