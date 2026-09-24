@@ -7,7 +7,7 @@
   <ItemGroup>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Monitoring" Version="27.0.0--ci.1" />
+    <PackageReference Include="CK.Monitoring" Version="27.0.0--ci.2" />
     <PackageReference Include="Microsoft.FASTER.Core" Version="2.6.5" />
   </ItemGroup>
   <ItemGroup>
