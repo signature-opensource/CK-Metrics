@@ -4,7 +4,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Testing.Nunit" Version="17.0.0-mike.0.ci.16" />
+    <PackageReference Include="CK.Testing.Nunit" Version="17.0.0-mike.0.ci.17" />
     <PackageReference Include="coverlet.collector" Version="10.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
