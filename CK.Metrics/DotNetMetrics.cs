@@ -1,4 +1,5 @@
 using CK.Core;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -106,13 +107,13 @@ public static partial class DotNetMetrics
         _observableTimer = new Timer( OnObservableTimer, null, Timeout.Infinite, Timeout.Infinite );
         _currentConfigurations = [];
         _listener = new MeterListener();
-        _listener.SetMeasurementEventCallback<byte>( static ( i, m, t, s ) => ((InstrumentState<byte>)s!).HandleMeasure( m, t ) );
-        _listener.SetMeasurementEventCallback<short>( static ( i, m, t, s ) => ((InstrumentState<short>)s!).HandleMeasure( m, t ) );
-        _listener.SetMeasurementEventCallback<int>( static ( i, m, t, s ) => ((InstrumentState<int>)s!).HandleMeasure( m, t ) );
-        _listener.SetMeasurementEventCallback<long>( static ( i, m, t, s ) => ((InstrumentState<long>)s!).HandleMeasure( m, t ) );
-        _listener.SetMeasurementEventCallback<float>( static ( i, m, t, s ) => ((InstrumentState<float>)s!).HandleMeasure( m, t ) );
-        _listener.SetMeasurementEventCallback<double>( static ( i, m, t, s ) => ((InstrumentState<double>)s!).HandleMeasure( m, t ) );
-        _listener.SetMeasurementEventCallback<decimal>( static ( i, m, t, s ) => ((InstrumentState<decimal>)s!).HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<byte>( static ( i, m, t, s ) => (s as InstrumentState<byte>)?.HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<short>( static ( i, m, t, s ) => (s as InstrumentState<short>)?.HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<int>( static ( i, m, t, s ) => (s as InstrumentState<int>)?.HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<long>( static ( i, m, t, s ) => (s as InstrumentState<long>)?.HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<float>( static ( i, m, t, s ) => (s as InstrumentState<float>)?.HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<double>( static ( i, m, t, s ) => (s as InstrumentState<double>)?.HandleMeasure( m, t ) );
+        _listener.SetMeasurementEventCallback<decimal>( static ( i, m, t, s ) => (s as InstrumentState<decimal>)?.HandleMeasure( m, t ) );
         _listener.InstrumentPublished = OnInstrumentPublished;
         _listener.MeasurementsCompleted = OnMeasurementsCompleted;
         _listener.Start();
@@ -120,7 +121,18 @@ public static partial class DotNetMetrics
         _staticInitializing = false;
     }
 
-    static void OnObservableTimer( object? state ) => _listener.RecordObservableInstruments();
+    static void OnObservableTimer( object? state )
+    {
+        // An exception that escapes a Timer callback crashes the process.
+        try
+        {
+            _listener.RecordObservableInstruments();
+        }
+        catch( Exception ex )
+        {
+            ActivityMonitor.StaticLogger.UnfilteredLog( LogLevel.Error | LogLevel.IsFiltered, _internalTag, "While recording observable instruments.", ex, _filePath, 1 );
+        }
+    }
 
     /// <summary>
     /// Gets the currently available instruments and their configuration.
