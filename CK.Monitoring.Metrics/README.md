@@ -1,12 +1,12 @@
 # CK.Monitoring.Metrics
 
-Integrates [CK.Metrics](https://www.nuget.org/packages/CK.Metrics) with [CK.Monitoring](https://www.nuget.org/packages/CK.Monitoring)
-by providing a `GrandOutputHandler` that writes metrics to a high-performance [FasterLog](https://microsoft.github.io/FASTER/docs/fasterlog/).
+Integrates [CK.Metrics](../CK.Metrics/README.md) with [CK.Monitoring](https://github.com/signature-opensource/CK-Monitoring/blob/stable/CK.Monitoring/README.md)
+by providing an `IGrandOutputHandler` that writes metrics to a high-performance [FasterLog](https://microsoft.github.io/FASTER/docs/fasterlog/).
 
 > **Important:** `MetricsLogHandler` does not create its FasterLog. The instance must be injected at
 > runtime, and until it is, the handler has nowhere to write. Owning that lifecycle - creating the log,
-> injecting it, disposing it - is deliberately left to whatever hosts the application; the packages
-> listed at the end of this file include one that does it.
+> injecting it, disposing it - is deliberately left to whatever hosts the application. For an example of a
+> package that does it, see [CK.AppIdentity.Monitoring.Metrics](../CK.AppIdentity.Monitoring.Metrics/README.md).
 
 ## Overview
 
@@ -48,6 +48,27 @@ Or simply enable with defaults:
 }
 ```
 
+The same from code, followed by the [CK.Metrics](../CK.Metrics/README.md) configuration and instruments:
+
+```csharp
+await using var go = GrandOutput.EnsureActiveDefault(new GrandOutputConfiguration
+{
+    Handlers = { new MetricsLogHandlerConfiguration() }
+});
+
+DotNetMetrics.ApplyConfiguration(new MetricsConfiguration
+{
+    AutoObservableTimer = 50,
+    Configurations = { (new InstrumentMatcher("*"), InstrumentConfiguration.BasicEnabled) }
+});
+
+using var meter = new Meter("MyApp.Service", "1.0");
+var counter = meter.CreateCounter<int>("requests.total")
+    .DefaultConfigure(InstrumentConfiguration.BasicEnabled);
+counter.Add(1);
+// The measurement reaches MetricsLogHandler. It drops it until a FasterLog is injected into it.
+```
+
 ### Configuration Options
 
 | Property | Type | Default | Description |
@@ -56,7 +77,7 @@ Or simply enable with defaults:
 
 ## How It Works
 
-1. The handler receives log entries tagged with `DotNetMetrics.MetricsTag` from the GrandOutput pipeline
+1. The handler considers the log entries tagged with `DotNetMetrics.MetricsTag` from the GrandOutput pipeline
 2. Four filters then drop an entry rather than write it: a `SecurityCritical` tag, an entry that did
    not come from the static logger, a null or non-ASCII `Text`, and an entry whose payload would exceed
    `(1 << 16) - sizeof(long)` - that last one is logged as a `Warn`, the others silently
@@ -82,7 +103,7 @@ you. What this package guarantees is the three members that make one writable:
 
 | Member | Contract |
 |--------|----------|
-| `SetFasterLog( FasterLog )` | once-only. A second call throws `InvalidOperationException` - the message reads `Invalid state: 'FasterLog is already set.' should be true.`, the guard being `Throw.CheckState( _log == null, "FasterLog is already set." )` bound to the `[CallerArgumentExpression]` overload rather than the message-carrying one |
+| `SetFasterLog( FasterLog )` | once-only: a second call (without a `ClearFasterLog()` in between) throws an `InvalidOperationException` |
 | `HasFasterLog` | whether one is set - readable from inside any `GrandOutputHandlersAction`, and the way to detect the silent case |
 | `ClearFasterLog()` | the way back, for shutdown |
 
@@ -101,11 +122,11 @@ Each FasterLog entry contains:
 - **8 bytes**: DateTime as binary (via `DateTime.ToBinary()`)
 - **Remaining bytes**: ASCII-encoded metrics text
 
-The text format follows the CK.Metrics log format for meters, instruments, and measurements. An entry
+The text format follows the [CK.Metrics log format](../CK.Metrics/MetricInfo/README.md#metric-log-format) for meters, instruments, and measurements. An entry
 whose total size would exceed `(1 << 16) - sizeof(long)` is dropped with a warning rather than
 truncated.
 
-## Requires.
+## Requires
 
 - `CK.Monitoring` for the handler contract and `GrandOutputHandlersAction`, `CK.Metrics` for the
   metrics themselves, and `Microsoft.FASTER.Core` for `FasterLog`.

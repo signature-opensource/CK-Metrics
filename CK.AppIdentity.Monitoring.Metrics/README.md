@@ -1,7 +1,7 @@
 # CK.AppIdentity.Monitoring.Metrics
 
-Integrates [CK.Monitoring.Metrics](https://www.nuget.org/packages/CK.Monitoring.Metrics) with
-[CK.AppIdentity](https://www.nuget.org/packages/CK.AppIdentity) for automatic FasterLog management and consumer registration.
+Integrates [CK.Monitoring.Metrics](../CK.Monitoring.Metrics/README.md) with
+[CK.AppIdentity](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity/README.md) for automatic FasterLog management and consumer registration.
 
 ## Overview
 
@@ -21,8 +21,7 @@ MetricsFeatureDriver (owns FasterLog)
     ├── Handles truncation and orphan cleanup
     │
     └── Consumers (registered via RegisterConsumer)
-        ├── CsvMetricsConsumer
-        ├── (other consumers...)
+        ├── (IMetricsConsumer implementations...)
         └── Each uses named FasterLog iterators
 ```
 
@@ -151,6 +150,8 @@ When a consumer is removed from configuration:
 
 ## Related Packages
 
-- [CK.Metrics](https://www.nuget.org/packages/CK.Metrics) - Core metrics collection
-- [CK.Monitoring.Metrics](https://www.nuget.org/packages/CK.Monitoring.Metrics) - GrandOutput handler
-- [CK.AppIdentity.Monitoring.Metrics.Csv](https://www.nuget.org/packages/CK.AppIdentity.Monitoring.Metrics.Csv) - CSV export consumer
+- [CK.Metrics](../CK.Metrics/README.md) - Core metrics collection
+- [CK.Monitoring.Metrics](../CK.Monitoring.Metrics/README.md) - GrandOutput handler
+
+For an example consumer built on `MetricsConsumerBase`, see
+[CK.AppIdentity.Monitoring.Metrics.Csv](../CK.AppIdentity.Monitoring.Metrics.Csv/README.md).

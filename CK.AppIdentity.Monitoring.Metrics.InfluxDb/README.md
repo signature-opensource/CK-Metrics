@@ -103,18 +103,5 @@ http.requests,ck_domain=MyCompany,ck_environment=Production,ck_party=MyApp,meter
 
 ## GrandOutput Handler
 
-Remember to configure the metrics handler in your GrandOutput configuration:
-
-```json
-{
-  "CK-Monitoring": {
-    "GrandOutput": {
-      "Handlers": {
-        "MetricsLogHandler, CK.Monitoring.Metrics": {
-          "CommitRate": 1
-        }
-      }
-    }
-  }
-}
-```
+Remember to configure the `MetricsLogHandler` in your GrandOutput configuration: see
+[CK.Monitoring.Metrics](../CK.Monitoring.Metrics/README.md#configuration).

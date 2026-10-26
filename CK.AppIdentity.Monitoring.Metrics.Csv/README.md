@@ -1,6 +1,6 @@
 # CK.AppIdentity.Monitoring.Metrics.Csv
 
-A CSV export consumer for [CK.AppIdentity.Monitoring.Metrics](https://www.nuget.org/packages/CK.AppIdentity.Monitoring.Metrics).
+A CSV export consumer for [CK.AppIdentity.Monitoring.Metrics](../CK.AppIdentity.Monitoring.Metrics/README.md).
 Writes metrics measurements to a CSV file for analysis or integration with other tools.
 
 ## Overview
@@ -37,7 +37,7 @@ This package provides:
 | `Name` | string | `csv-export` | Consumer name (max 20 chars, used for FasterLog iterator) |
 | `Path` | string | `Exports/metrics.csv` | Relative path within LocalFileStore for CSV output |
 | `RetryDelayMs` | int | 2000 | Delay before retrying on write failure |
-| `BatchThresholdBytes` | int | 4194304 | Size threshold for batching entries |
+| `BatchThresholdBytes` | long | 4194304 | Size threshold for batching entries |
 
 ## CSV Format
 
@@ -77,6 +77,6 @@ Like all metrics consumers, the CSV consumer:
 
 ## Related Packages
 
-- [CK.Metrics](https://www.nuget.org/packages/CK.Metrics) - Core metrics collection
-- [CK.Monitoring.Metrics](https://www.nuget.org/packages/CK.Monitoring.Metrics) - GrandOutput handler
-- [CK.AppIdentity.Monitoring.Metrics](https://www.nuget.org/packages/CK.AppIdentity.Monitoring.Metrics) - AppIdentity integration
+- [CK.Metrics](../CK.Metrics/README.md) - Core metrics collection
+- [CK.Monitoring.Metrics](../CK.Monitoring.Metrics/README.md) - GrandOutput handler
+- [CK.AppIdentity.Monitoring.Metrics](../CK.AppIdentity.Monitoring.Metrics/README.md) - AppIdentity integration

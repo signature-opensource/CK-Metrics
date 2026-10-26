@@ -1,6 +1,7 @@
 # CK-Metrics architecture
 
-Each stage belongs to a different package, which is what makes referencing the last one sufficient:
+Each stage belongs to a different package: reference CK.Metrics alone to *produce* metrics; reference a
+consumer package to also export them - it brings the rest of the chain along.
 
 ```mermaid
 flowchart TB
