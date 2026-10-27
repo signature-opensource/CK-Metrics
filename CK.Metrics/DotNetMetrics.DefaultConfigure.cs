@@ -30,7 +30,8 @@ public static partial class DotNetMetrics // Extensions
 public static partial class DotNetMetrics // DefaultConfigure
 {
     /// <summary>
-    /// Configures an instrument if it has no existing matching configuration in last applied <see cref="MetricsConfiguration"/>.
+    /// Configures an instrument if it has no existing matching configuration in last applied <see cref="MetricsConfiguration"/>
+    /// (an explicit configuration always wins, even when it disables the instrument).
     /// The <paramref name="configuration"/> must not be a <see cref="InstrumentConfiguration.BasicDisabled"/> configuration
     /// otherwise an <see cref="ArgumentException"/> is thrown: BasicDisabled is the default configuration.
     /// </summary>

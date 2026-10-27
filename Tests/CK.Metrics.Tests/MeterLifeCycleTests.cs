@@ -26,7 +26,9 @@ public class MeterLifeCycleTests
     public void Teardown()
     {
         ActivityMonitor.OnStaticLog -= ActivityMonitor_OnStaticLog;
-        AllEnableOrDisable( false );
+        // Removes the configuration rules: a "*" rule (even disabling) would take precedence
+        // over the DefaultConfigure used by the other tests.
+        DotNetMetrics.ApplyConfiguration( new MetricsConfiguration { AutoObservableTimer = 0 } );
         _logs.Clear();
     }
 

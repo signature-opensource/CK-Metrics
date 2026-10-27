@@ -62,7 +62,12 @@ public static partial class DotNetMetrics
                         // DefaultConfigure
                         if( _instruments.TryGetValue( defaultConfig.Item1, out var iState ) )
                         {
-                            if( iState.Info.Configuration.Equals( InstrumentConfiguration.BasicDisabled ) )
+                            // A matching configuration rule always wins, even when it disables the instrument.
+                            if( HasMatchingConfiguration( iState ) )
+                            {
+                                monitor.Debug( _tag, $"Skipped DefaultConfigure for instrument '{iState.Info.FullName}' as it is explicitly configured." );
+                            }
+                            else if( iState.Info.Configuration.Equals( InstrumentConfiguration.BasicDisabled ) )
                             {
                                 bool changed = iState.SetConfiguration( monitor, _listener, defaultConfig.Item2, true );
                                 Throw.DebugAssert( changed );

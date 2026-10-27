@@ -46,8 +46,10 @@ var counter = meter.CreateCounter<int>( "orders.completed" )
 counter.Add( 1 ); // Measurement is recorded
 ```
 
-The `DefaultConfigure()` extension method is fluent and applies the configuration immediately
-if the instrument is currently disabled; an instrument already enabled keeps its configuration.
+The `DefaultConfigure()` extension method is fluent and applies the configuration immediately unless a
+rule of the current `MetricsConfiguration` matches the instrument: an explicit configuration always wins,
+even when it disables the instrument (so a catch-all `"*"` rule disables every default).
+An instrument already enabled by a previous `DefaultConfigure` keeps its configuration.
 The configuration cannot be `InstrumentConfiguration.BasicDisabled` (an `ArgumentException` is thrown).
 It works with all instrument types: `Counter<T>`, `UpDownCounter<T>`, `Gauge<T>`, `Histogram<T>`, and their
 observable variants.

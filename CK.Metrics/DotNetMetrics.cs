@@ -288,6 +288,16 @@ public static partial class DotNetMetrics
     }
 
     // Called from the MicroAgent.
+    static bool HasMatchingConfiguration( InstrumentState instrument )
+    {
+        foreach( var (m, _) in _currentConfigurations )
+        {
+            if( m.Match( instrument.Info ) ) return true;
+        }
+        return false;
+    }
+
+    // Called from the MicroAgent.
     static void Apply( ActivityMonitor monitor, MetricsConfiguration configuration )
     {
         using var _t = monitor.TemporarilySetAutoTags( _internalTag );

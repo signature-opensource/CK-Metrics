@@ -26,10 +26,10 @@ public class InstrumentMatcherTests
     [TearDown]
     public void TearDown()
     {
-        // Disable metrics after tests
+        // Removes the configuration rules after tests: a "*" rule (even disabling) would
+        // take precedence over the DefaultConfigure used by the other tests.
         var c = new MetricsConfiguration();
         c.AutoObservableTimer = 0;
-        c.Configurations.Add( (new InstrumentMatcher( "*" ), InstrumentConfiguration.BasicDisabled) );
         DotNetMetrics.ApplyConfiguration( c, waitForApplication: true );
     }
 
