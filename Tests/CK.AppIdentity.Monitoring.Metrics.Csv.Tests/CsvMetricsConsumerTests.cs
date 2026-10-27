@@ -11,6 +11,35 @@ namespace CK.AppIdentity.Monitoring.Metrics.Csv.Tests;
 public class CsvMetricsConsumerTests
 {
     [Test]
+    public async Task consumer_guards_have_explicit_messages_Async()
+    {
+        var testDir = Path.Combine( TestHelper.TestProjectFolder, "Logs", nameof( consumer_guards_have_explicit_messages_Async ) );
+        if( Directory.Exists( testDir ) ) Directory.Delete( testDir, true );
+        Directory.CreateDirectory( testDir );
+
+        var csvPath = Path.Combine( testDir, "metrics.csv" );
+        using var device = Devices.CreateLogDevice( Path.Combine( testDir, "faster-log", "metrics.log" ), preallocateFile: false );
+        using var log = new FasterLog( new FasterLogSettings { LogDevice = device } );
+
+        var tooLong = Assert.Throws<ArgumentException>( () => new CsvMetricsConsumer( log, new string( 'x', 21 ), csvPath, maxBatchAgeMs: 0 ) );
+        Assert.That( tooLong.Message, Does.StartWith( "Consumer name must be 20 characters or less." ) );
+
+        var cts = new CancellationTokenSource();
+        var consumer = new CsvMetricsConsumer( log, "test-consumer", csvPath, maxBatchAgeMs: 0 );
+        try
+        {
+            await consumer.StartAsync( TestHelper.Monitor, cts.Token );
+            var started = Assert.Throws<InvalidOperationException>( () => consumer.StartAsync( TestHelper.Monitor, cts.Token ) );
+            Assert.That( started.Message, Does.StartWith( "Consumer is already started." ) );
+        }
+        finally
+        {
+            await cts.CancelAsync();
+            await consumer.DisposeAsync();
+        }
+    }
+
+    [Test]
     public async Task consumer_creates_csv_file_with_header_Async()
     {
         var testDir = Path.Combine( TestHelper.TestProjectFolder, "Logs", nameof( consumer_creates_csv_file_with_header_Async ) );

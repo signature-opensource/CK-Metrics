@@ -111,7 +111,7 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
     public void RegisterConsumer( IMetricsConsumer consumer )
     {
         Throw.CheckNotNullArgument( consumer );
-        Throw.CheckState( _log != null, "FasterLog is not initialized." );
+        Throw.CheckState( "FasterLog is not initialized.", _log != null );
 
         _consumers.Add( consumer );
         _registeredConsumerNames.Add( consumer.Name );

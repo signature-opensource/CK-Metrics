@@ -46,7 +46,7 @@ public sealed class MetricsLogHandler : IGrandOutputHandler
     /// <exception cref="InvalidOperationException">Thrown if FasterLog is already set.</exception>
     public void SetFasterLog( FasterLog log )
     {
-        Throw.CheckState( _log == null, "FasterLog is already set." );
+        Throw.CheckState( "FasterLog is already set.", _log == null );
         Throw.CheckNotNullArgument( log );
         _log = log;
     }

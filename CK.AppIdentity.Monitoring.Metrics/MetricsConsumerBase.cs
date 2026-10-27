@@ -40,7 +40,7 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
     {
         Throw.CheckNotNullArgument( log );
         Throw.CheckNotNullOrWhiteSpaceArgument( name );
-        Throw.CheckArgument( name.Length <= 20, "Consumer name must be 20 characters or less." );
+        Throw.CheckArgument( "Consumer name must be 20 characters or less.", name.Length <= 20 );
 
         _log = log;
         _name = name;
@@ -64,7 +64,7 @@ public abstract class MetricsConsumerBase : IMetricsConsumer
     /// <inheritdoc />
     public Task StartAsync( IActivityMonitor monitor, CancellationToken ct )
     {
-        Throw.CheckState( _iterator == null, "Consumer is already started." );
+        Throw.CheckState( "Consumer is already started.", _iterator == null );
 
         // Create a named iterator - automatically recovers position from the persisted state.
         _iterator = _log.Scan( 0, long.MaxValue, name: _name, recover: true );

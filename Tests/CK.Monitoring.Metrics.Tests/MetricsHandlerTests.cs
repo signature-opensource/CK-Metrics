@@ -115,7 +115,8 @@ public class MetricsHandlerTests
         var handler = new MetricsLogHandler( new MetricsLogHandlerConfiguration() );
         handler.SetFasterLog( log );
 
-        Should.Throw<InvalidOperationException>( () => handler.SetFasterLog( log ) );
+        Should.Throw<InvalidOperationException>( () => handler.SetFasterLog( log ) )
+              .Message.ShouldStartWith( "FasterLog is already set." );
     }
 
     [Test]
