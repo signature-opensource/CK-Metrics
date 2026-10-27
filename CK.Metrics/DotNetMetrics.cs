@@ -68,7 +68,7 @@ public static partial class DotNetMetrics
 
     /// <summary>
     /// This applies to string tag values and string items in array of strings.
-    /// It defaults to 1024 characters.
+    /// It defaults to 1023 characters.
     /// <para>
     /// A <see cref="CKException"/> is thrown if a <see cref="Meter.Tags"/>
     /// or <see cref="Instrument.Tags"/> has a string value longer than this limit.
@@ -78,7 +78,8 @@ public static partial class DotNetMetrics
     public static int AttributeValueLengthLimit { get; set; }
 
     /// <summary>
-    /// The maximal <see cref="InstrumentConfiguration.CoolerTimeSpan"/> is one hour.
+    /// Maximal time span (in milliseconds, one hour) of the planned "cooler" of the <see cref="InstrumentConfiguration"/>.
+    /// This is currently not used.
     /// </summary>
     public const int MaxCoolerTimeSpan = 3_600_000;
 

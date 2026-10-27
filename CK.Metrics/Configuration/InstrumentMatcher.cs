@@ -17,7 +17,7 @@ public sealed class InstrumentMatcher
     readonly ImmutableArray<KeyValuePair<string, object?>> _excludeTags;
 
     /// <summary>
-    /// Gets the <see cref="InstrumentInfo.FullName"/> wildcard pattern to match.
+    /// Gets the <see cref="FullInstrumentInfo.FullName"/> wildcard pattern to match.
     /// <para>
     /// This uses a very basic projection a regular expression:
     /// <list type="bullet">
@@ -46,7 +46,7 @@ public sealed class InstrumentMatcher
     /// Initializes a new <see cref="InstrumentMatcher"/>.
     /// </summary>
     /// <param name="namePattern">
-    /// The <see cref="InstrumentInfo.FullName"/> wilcard pattern to match.
+    /// The <see cref="FullInstrumentInfo.FullName"/> wildcard pattern to match.
     /// "*" matches everything, this cannot be null or empty. See <see cref="NamePattern"/>.
     /// </param>
     /// <param name="includeTags">Required instrument's tags.</param>

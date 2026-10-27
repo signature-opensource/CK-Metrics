@@ -17,8 +17,8 @@ public class MetricsConfiguration
     /// Gets or sets the timer delay that collects the <see cref="ObservableInstrument{T}"/>
     /// measures. Defaults to null (leaves the current value unchaged).
     /// <para>
-    /// When not null, this is normalized to 0 (the default, auto collection is disabled by default)
-    /// or to a value between 50 ms and 3_600_000 ms (one hour).
+    /// When not null, this is clamped between 0 and 3_600_000 ms (one hour): a negative value
+    /// becomes 0, that disables the auto collection (the default).
     /// </para>
     /// </summary>
     public int? AutoObservableTimer
