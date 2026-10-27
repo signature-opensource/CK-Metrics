@@ -187,32 +187,31 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
 
         // Send FasterLog to the handler via action (with retry if handler not yet configured).
         var action = new SetMetricsFasterLogAction( _log );
-        _targetGrandOutput.Sink.Submit( action );
-        await action.Completion;
+        bool running = await SubmitAsync( _targetGrandOutput, action );
 
-        if( !action.HandlerFound )
+        if( running && !action.HandlerFound )
         {
             // Handler may be configured later - retry with timeout.
             var start = DateTime.UtcNow;
-            while( !action.HandlerFound && (DateTime.UtcNow - start).TotalMilliseconds < handlerWaitTimeoutMs )
+            while( running && !action.HandlerFound && (DateTime.UtcNow - start).TotalMilliseconds < handlerWaitTimeoutMs )
             {
                 await Task.Delay( 100 );
                 action = new SetMetricsFasterLogAction( _log );
-                _targetGrandOutput.Sink.Submit( action );
-                await action.Completion;
+                running = await SubmitAsync( _targetGrandOutput, action );
             }
-
-            if( !action.HandlerFound )
-            {
-                context.Monitor.Error( "MetricsFeatureDriver: MetricsLogHandler not found in GrandOutput. " +
-                                       "Ensure CK-Monitoring:GrandOutput:Handlers includes MetricsLogHandlerConfiguration." );
-                // Cleanup.
-                _log.Dispose();
-                _device.Dispose();
-                _log = null;
-                _device = null;
-                return false;
-            }
+        }
+        if( !running || !action.HandlerFound )
+        {
+            context.Monitor.Error( running
+                                    ? "MetricsFeatureDriver: MetricsLogHandler not found in GrandOutput. " +
+                                      "Ensure CK-Monitoring:GrandOutput:Handlers includes MetricsLogHandlerConfiguration."
+                                    : "MetricsFeatureDriver: the GrandOutput is stopped." );
+            // Cleanup.
+            _log.Dispose();
+            _device.Dispose();
+            _log = null;
+            _device = null;
+            return false;
         }
 
         context.Monitor.Info( $"MetricsFeatureDriver: Configured FasterLog at '{resolvedPath}'." );
@@ -334,10 +333,11 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
         if( _targetGrandOutput != null )
         {
             var clearAction = new ClearMetricsFasterLogAction();
-            _targetGrandOutput.Sink.Submit( clearAction );
-            await clearAction.Completion;
-
-            if( !clearAction.HandlerFound )
+            if( !await SubmitAsync( _targetGrandOutput, clearAction ) )
+            {
+                context.Monitor.Warn( "MetricsFeatureDriver: the GrandOutput is already stopped during teardown." );
+            }
+            else if( !clearAction.HandlerFound )
             {
                 context.Monitor.Warn( "MetricsFeatureDriver: MetricsLogHandler not found during teardown." );
             }
@@ -358,5 +358,20 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
         _log = null;
         _device = null;
         _targetGrandOutput = null;
+    }
+
+    // Returns false when the action has been canceled: the GrandOutput is stopped.
+    static async Task<bool> SubmitAsync( GrandOutput grandOutput, GrandOutputHandlersAction action )
+    {
+        grandOutput.Sink.Submit( action );
+        try
+        {
+            await action.Completion;
+            return true;
+        }
+        catch( OperationCanceledException )
+        {
+            return false;
+        }
     }
 }
