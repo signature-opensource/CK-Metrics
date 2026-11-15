@@ -1,6 +1,7 @@
 using CK.AppIdentity;
 using CK.AppIdentity.Monitoring.Metrics;
 using CK.Core;
+using CK.Testing;
 using CK.Monitoring;
 using CK.Monitoring.Handlers;
 using Microsoft.Extensions.Configuration;
@@ -53,6 +54,8 @@ public class CsvMetricsConsumerFeatureDriverTests
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
         builder.Services.AddSingleton<CsvMetricsConsumerFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<CsvMetricsConsumerFeatureDriver>() );
+
+        builder.Services.AddPartyComponentDirectory();
 
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
@@ -111,6 +114,8 @@ public class CsvMetricsConsumerFeatureDriverTests
         builder.Services.AddSingleton<CsvMetricsConsumerFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<CsvMetricsConsumerFeatureDriver>() );
 
+        builder.Services.AddPartyComponentDirectory();
+
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
 
@@ -160,6 +165,8 @@ public class CsvMetricsConsumerFeatureDriverTests
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
         builder.Services.AddSingleton<CsvMetricsConsumerFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<CsvMetricsConsumerFeatureDriver>() );
+
+        builder.Services.AddPartyComponentDirectory();
 
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
@@ -213,6 +220,8 @@ public class CsvMetricsConsumerFeatureDriverTests
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
         builder.Services.AddSingleton<CsvMetricsConsumerFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<CsvMetricsConsumerFeatureDriver>() );
+
+        builder.Services.AddPartyComponentDirectory();
 
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
@@ -269,6 +278,8 @@ public class CsvMetricsConsumerFeatureDriverTests
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
         builder.Services.AddSingleton<CsvMetricsConsumerFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<CsvMetricsConsumerFeatureDriver>() );
+
+        builder.Services.AddPartyComponentDirectory();
 
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();

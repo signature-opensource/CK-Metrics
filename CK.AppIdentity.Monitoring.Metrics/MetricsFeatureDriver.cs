@@ -53,6 +53,7 @@ namespace CK.AppIdentity.Monitoring.Metrics;
 /// }
 /// </code>
 /// </remarks>
+[PartyFeature( IsOptional = false )]
 public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
 {
     /// <summary>
@@ -88,7 +89,7 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
     /// </summary>
     /// <param name="s">The application identity service.</param>
     public MetricsFeatureDriver( ApplicationIdentityService s )
-        : base( s, isAllowedByDefault: true )
+        : base( s )
     {
     }
 

@@ -28,6 +28,7 @@ namespace CK.AppIdentity.Monitoring.Metrics.InfluxDb;
 /// }
 /// </code>
 /// </remarks>
+[PartyFeature( IsOptional = false )]
 public sealed class InfluxDbMetricsConsumerFeatureDriver : ApplicationIdentityFeatureDriver
 {
     /// <summary>
@@ -47,7 +48,7 @@ public sealed class InfluxDbMetricsConsumerFeatureDriver : ApplicationIdentityFe
     /// This dependency ensures correct initialization order.
     /// </param>
     public InfluxDbMetricsConsumerFeatureDriver( ApplicationIdentityService s, MetricsFeatureDriver metricsDriver )
-        : base( s, isAllowedByDefault: true )
+        : base( s )
     {
         _metricsDriver = metricsDriver;
     }

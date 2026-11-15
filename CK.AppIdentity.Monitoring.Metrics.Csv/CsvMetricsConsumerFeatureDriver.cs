@@ -64,6 +64,7 @@ namespace CK.AppIdentity.Monitoring.Metrics.Csv;
 /// }
 /// </code>
 /// </remarks>
+[PartyFeature( IsOptional = false )]
 public sealed class CsvMetricsConsumerFeatureDriver : ApplicationIdentityFeatureDriver
 {
     // =====================================================================================
@@ -132,7 +133,7 @@ public sealed class CsvMetricsConsumerFeatureDriver : ApplicationIdentityFeature
     /// Set to <c>false</c> if the consumer should only run when explicitly enabled.
     /// </remarks>
     public CsvMetricsConsumerFeatureDriver( ApplicationIdentityService s, MetricsFeatureDriver metricsDriver )
-        : base( s, isAllowedByDefault: true )
+        : base( s )
     {
         _metricsDriver = metricsDriver;
     }

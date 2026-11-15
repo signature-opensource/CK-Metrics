@@ -1,5 +1,6 @@
 using CK.AppIdentity;
 using CK.Core;
+using CK.Testing;
 using CK.Metrics;
 using CK.Monitoring;
 using CK.Monitoring.Handlers;
@@ -76,6 +77,8 @@ public class MetricsFeatureDriverTests
         builder.Services.AddSingleton<MetricsFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
 
+        builder.Services.AddPartyComponentDirectory();
+
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
 
@@ -124,6 +127,8 @@ public class MetricsFeatureDriverTests
         builder.Services.AddSingleton<MetricsFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
 
+        builder.Services.AddPartyComponentDirectory();
+
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
 
@@ -169,6 +174,8 @@ public class MetricsFeatureDriverTests
         builder.Services.AddSingleton<IHostedService>( sp => sp.GetRequiredService<ApplicationIdentityService>() );
         builder.Services.AddSingleton<MetricsFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
+
+        builder.Services.AddPartyComponentDirectory();
 
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
@@ -224,6 +231,8 @@ public class MetricsFeatureDriverTests
         builder.Services.AddSingleton<IHostedService>( sp => sp.GetRequiredService<ApplicationIdentityService>() );
         builder.Services.AddSingleton<MetricsFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
+
+        builder.Services.AddPartyComponentDirectory();
 
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
@@ -281,6 +290,8 @@ public class MetricsFeatureDriverTests
         builder.Services.AddSingleton<IHostedService>( sp => sp.GetRequiredService<ApplicationIdentityService>() );
         builder.Services.AddSingleton<MetricsFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
+
+        builder.Services.AddPartyComponentDirectory();
 
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
@@ -340,6 +351,8 @@ public class MetricsFeatureDriverTests
         builder.Services.AddSingleton<IHostedService>( sp => sp.GetRequiredService<ApplicationIdentityService>() );
         builder.Services.AddSingleton<MetricsFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
+
+        builder.Services.AddPartyComponentDirectory();
 
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
@@ -409,6 +422,8 @@ public class MetricsFeatureDriverTests
         builder.Services.AddSingleton<IHostedService>( sp => sp.GetRequiredService<ApplicationIdentityService>() );
         builder.Services.AddSingleton<MetricsFeatureDriver>();
         builder.Services.AddSingleton<IApplicationIdentityFeatureDriver>( sp => sp.GetRequiredService<MetricsFeatureDriver>() );
+
+        builder.Services.AddPartyComponentDirectory();
 
         using var host = builder.AddApplicationIdentityServiceConfiguration().CKBuild();
         await host.StartAsync();
