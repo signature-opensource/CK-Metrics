@@ -53,7 +53,7 @@ namespace CK.AppIdentity.Monitoring.Metrics;
 /// }
 /// </code>
 /// </remarks>
-[PartyFeature( IsOptional = false )]
+[PartyFeature( "Metrics", TypeActivation.ByDefault )]
 public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
 {
     /// <summary>

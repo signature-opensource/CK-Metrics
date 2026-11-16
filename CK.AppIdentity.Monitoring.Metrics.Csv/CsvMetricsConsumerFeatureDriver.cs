@@ -64,7 +64,7 @@ namespace CK.AppIdentity.Monitoring.Metrics.Csv;
 /// }
 /// </code>
 /// </remarks>
-[PartyFeature( IsOptional = false )]
+[PartyFeature( "CsvMetricsConsumer", TypeActivation.ByDefault )]
 public sealed class CsvMetricsConsumerFeatureDriver : ApplicationIdentityFeatureDriver
 {
     // =====================================================================================

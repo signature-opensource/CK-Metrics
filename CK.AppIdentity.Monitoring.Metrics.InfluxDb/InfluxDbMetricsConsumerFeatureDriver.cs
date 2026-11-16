@@ -28,7 +28,7 @@ namespace CK.AppIdentity.Monitoring.Metrics.InfluxDb;
 /// }
 /// </code>
 /// </remarks>
-[PartyFeature( IsOptional = false )]
+[PartyFeature( "InfluxDbMetricsConsumer", TypeActivation.ByDefault )]
 public sealed class InfluxDbMetricsConsumerFeatureDriver : ApplicationIdentityFeatureDriver
 {
     /// <summary>
