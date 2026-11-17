@@ -89,6 +89,9 @@ public class MyMetricsConsumer : MetricsConsumerBase
 Create a feature driver to register the consumer:
 
 ```csharp
+// ByDefault: active unless the configuration turns it off ("MyConsumer": false);
+// Optional: active only when the configuration declares it ("MyConsumer": true or its section).
+[PartyFeature("MyConsumer", TypeActivation.ByDefault)]
 public class MyConsumerFeatureDriver : ApplicationIdentityFeatureDriver
 {
     readonly MetricsFeatureDriver _metricsDriver;
@@ -97,7 +100,7 @@ public class MyConsumerFeatureDriver : ApplicationIdentityFeatureDriver
     public MyConsumerFeatureDriver(
         ApplicationIdentityService s,
         MetricsFeatureDriver metricsDriver)
-        : base(s, isAllowedByDefault: true)
+        : base(s)
     {
         _metricsDriver = metricsDriver; // DI ensures correct order
     }

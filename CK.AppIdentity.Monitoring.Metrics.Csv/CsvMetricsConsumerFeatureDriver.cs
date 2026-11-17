@@ -128,9 +128,9 @@ public sealed class CsvMetricsConsumerFeatureDriver : ApplicationIdentityFeature
     /// </para>
     /// </param>
     /// <remarks>
-    /// The <c>isAllowedByDefault: true</c> parameter means this feature driver
-    /// will be activated unless explicitly disabled in configuration.
-    /// Set to <c>false</c> if the consumer should only run when explicitly enabled.
+    /// The <see cref="TypeActivation.ByDefault"/> of the <see cref="PartyFeatureAttribute"/> on this class means
+    /// this feature driver is activated unless the configuration turns it off (<c>"CsvMetricsConsumer": false</c>).
+    /// Use <see cref="TypeActivation.Optional"/> if the consumer should only run when the configuration declares it.
     /// </remarks>
     public CsvMetricsConsumerFeatureDriver( ApplicationIdentityService s, MetricsFeatureDriver metricsDriver )
         : base( s )
