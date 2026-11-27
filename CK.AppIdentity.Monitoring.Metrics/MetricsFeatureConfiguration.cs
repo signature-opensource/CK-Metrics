@@ -10,7 +10,7 @@ namespace CK.AppIdentity.Monitoring.Metrics;
 /// Its consumers are its options ("Csv", "InfluxDb"...: see <see cref="IMetricsConsumerOption"/>).
 /// </summary>
 [ConfigurationModel]
-public sealed class MetricsConfiguration : IConfigurationModel
+public sealed class MetricsFeatureConfiguration : IConfigurationModel
 {
     /// <summary>
     /// Gets the path of the FasterLog, relative to the local file store of the party.

@@ -13,7 +13,7 @@ namespace CK.AppIdentity.Monitoring.Metrics;
 /// </para>
 /// <para>
 /// The feature is optional: it is on when the root party declares it (<c>"Metrics": true</c> or its section, its model
-/// <see cref="MetricsConfiguration"/>). Its consumers are its options (<see cref="IMetricsConsumerOption"/>: "Csv",
+/// <see cref="MetricsFeatureConfiguration"/>). Its consumers are its options (<see cref="IMetricsConsumerOption"/>: "Csv",
 /// "InfluxDb"...): once the FasterLog is ready, the driver creates, registers and starts the consumer of each enabled
 /// option.
 /// </para>
@@ -56,7 +56,7 @@ namespace CK.AppIdentity.Monitoring.Metrics;
 /// </code>
 /// </remarks>
 [PartyFeature( "Metrics", TypeActivation.Optional )]
-[Configuration<MetricsConfiguration>]
+[Configuration<MetricsFeatureConfiguration>]
 public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
 {
     /// <summary>
@@ -147,7 +147,7 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
             context.Monitor.Trace( "MetricsFeatureDriver: the \"Metrics\" feature is not declared. Metrics not enabled." );
             return true;
         }
-        var configuration = GetModel<MetricsConfiguration>( party );
+        var configuration = GetModel<MetricsFeatureConfiguration>( party );
         var resolvedPath = party.LocalFileStore.FolderPath.Combine( configuration.Path );
         int memoryPageCount = configuration.MemoryPageCount;
         _truncationIntervalMs = configuration.TruncationIntervalMs;

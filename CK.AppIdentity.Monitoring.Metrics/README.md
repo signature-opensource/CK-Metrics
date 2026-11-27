@@ -7,7 +7,7 @@ Integrates [CK.Monitoring.Metrics](../CK.Monitoring.Metrics/README.md) with
 
 This package provides:
 - **MetricsFeatureDriver**: An `ApplicationIdentityFeatureDriver` that owns the shared FasterLog instance (the optional
-  "Metrics" feature of the root party, its model `MetricsConfiguration`)
+  "Metrics" feature of the root party, its model `MetricsFeatureConfiguration`)
 - **IMetricsConsumerOption**: A consumer is an option of the "Metrics" feature (`"Metrics": { "Csv": { ... } }`)
 - **IMetricsConsumer / MetricsConsumerBase**: Interfaces and base class for implementing metrics consumers
 - **Automatic path resolution**: FasterLog storage uses the application's `LocalFileStore`
@@ -30,7 +30,7 @@ MetricsFeatureDriver (owns FasterLog)
 ## Configuration
 
 The "Metrics" feature is optional: the root party declares it (`"Metrics": true` or its section). Its section is its
-model (`MetricsConfiguration`) and its consumers (its options: "Csv", "InfluxDb"...); any other key is an error.
+model (`MetricsFeatureConfiguration`) and its consumers (its options: "Csv", "InfluxDb"...); any other key is an error.
 
 ```json
 {
