@@ -1,10 +1,26 @@
+using CK.Core;
+
 namespace CK.AppIdentity.Monitoring.Metrics.InfluxDb;
 
 /// <summary>
-/// Configuration for the InfluxDB metrics consumer.
+/// Configuration for the InfluxDB metrics consumer: the model of the "InfluxDb" option of the "Metrics" feature
+/// (<see cref="InfluxDbMetricsConsumerOption"/>). <see cref="ServerUrl"/>, <see cref="Org"/> and <see cref="Bucket"/> are
+/// required; <see cref="Token"/> and <see cref="Password"/> are secrets.
 /// </summary>
-public sealed class InfluxDbConfiguration
+[ConfigurationModel]
+public sealed class InfluxDbConfiguration : IConfigurationModel
 {
+    /// <summary>
+    /// The default name of the consumer.
+    /// </summary>
+    public const string DefaultConsumerName = "influxdb-export";
+
+    /// <summary>
+    /// Gets or sets the name of the consumer: the name of its FasterLog iterator, unique among the consumers, at most 20
+    /// characters, stable across restarts.
+    /// </summary>
+    public string Name { get; set; } = DefaultConsumerName;
+
     /// <summary>
     /// Gets or sets the InfluxDB server URL.
     /// Example: "https://influxdb.example.com:8086"
@@ -25,6 +41,7 @@ public sealed class InfluxDbConfiguration
     /// Gets or sets the API token for token-based authentication.
     /// When set, the consumer uses "Authorization: Token {token}" header.
     /// </summary>
+    [ConfigurationSecret]
     public string? Token { get; set; }
 
     /// <summary>
@@ -37,6 +54,7 @@ public sealed class InfluxDbConfiguration
     /// Gets or sets the password for basic authentication.
     /// Use together with <see cref="Username"/> as an alternative to <see cref="Token"/>.
     /// </summary>
+    [ConfigurationSecret]
     public string? Password { get; set; }
 
     /// <summary>
@@ -93,4 +111,13 @@ public sealed class InfluxDbConfiguration
     /// Gets the write API endpoint URL.
     /// </summary>
     public string WriteUrl => $"{ServerUrl.TrimEnd( '/' )}/api/v2/write?org={Uri.EscapeDataString( Org )}&bucket={Uri.EscapeDataString( Bucket )}&precision=ns";
+
+    /// <inheritdoc />
+    public void Validate( IConfigurationValidationContext context )
+    {
+        if( string.IsNullOrWhiteSpace( Name ) || Name.Length > 20 ) context.Error( $"'{context.Path}:Name' is '{Name}': a name of at most 20 characters is expected." );
+        if( string.IsNullOrWhiteSpace( ServerUrl ) ) context.Error( $"'{context.Path}:ServerUrl' is required." );
+        if( string.IsNullOrWhiteSpace( Org ) ) context.Error( $"'{context.Path}:Org' is required." );
+        if( string.IsNullOrWhiteSpace( Bucket ) ) context.Error( $"'{context.Path}:Bucket' is required." );
+    }
 }

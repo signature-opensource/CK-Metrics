@@ -4,7 +4,8 @@ Metrics consumer that posts measurements to InfluxDB v2.x using the line protoco
 
 ## Configuration
 
-Add the InfluxDB consumer configuration to your AppIdentity local configuration:
+The consumer is the "InfluxDb" option of the "Metrics" feature (`InfluxDbMetricsConsumerOption`), its model is
+`InfluxDbConfiguration`. `Token` and `Password` are secrets: their configuration is a handle (`{ "$SECRET": "<Name>" }`).
 
 ```json
 {
@@ -12,20 +13,20 @@ Add the InfluxDB consumer configuration to your AppIdentity local configuration:
     "FullName": "MyDomain/$MyApp/#Dev",
     "Local": {
       "Metrics": {
-        "Path": "FasterLog/Metrics"
-      },
-      "MetricsInfluxDb": {
-        "Name": "influxdb",
-        "ServerUrl": "https://influxdb.example.com:8086",
-        "Org": "my-org",
-        "Bucket": "metrics",
-        "Token": "my-api-token",
-        "UseGzip": true,
-        "FlushIntervalMs": 1000,
-        "RetryDelayMs": 2000,
-        "BatchThresholdBytes": 4194304,
-        "MaxBatchAgeMs": 60000,
-        "GracefulShutdownTimeoutMs": 5000
+        "Path": "FasterLog/Metrics",
+        "InfluxDb": {
+          "Name": "influxdb",
+          "ServerUrl": "https://influxdb.example.com:8086",
+          "Org": "my-org",
+          "Bucket": "metrics",
+          "Token": { "$SECRET": "InfluxDbToken" },
+          "UseGzip": true,
+          "FlushIntervalMs": 1000,
+          "RetryDelayMs": 2000,
+          "BatchThresholdBytes": 4194304,
+          "MaxBatchAgeMs": 60000,
+          "GracefulShutdownTimeoutMs": 5000
+        }
       }
     }
   }
@@ -40,9 +41,9 @@ Add the InfluxDB consumer configuration to your AppIdentity local configuration:
 | `ServerUrl` | *required* | InfluxDB server URL (e.g., `https://localhost:8086`) |
 | `Org` | *required* | InfluxDB organization name |
 | `Bucket` | *required* | InfluxDB bucket name |
-| `Token` | - | API token for authentication |
+| `Token` | - | API token for authentication (a secret) |
 | `Username` | - | Username for basic auth (alternative to Token) |
-| `Password` | - | Password for basic auth |
+| `Password` | - | Password for basic auth (a secret) |
 | `UseGzip` | `true` | Compress HTTP requests with gzip |
 | `FlushIntervalMs` | `1000` | Cooldown between batches after successful send |
 | `RetryDelayMs` | `2000` | Delay before retrying after failure |
@@ -83,11 +84,11 @@ machines share the same domain/party/environment and you need additional discrim
 Tag values support environment variable expansion using the `%VARIABLE%` syntax:
 
 ```json
-"MetricsInfluxDb": {
+"InfluxDb": {
   "ServerUrl": "https://influxdb.example.com:8086",
   "Org": "my-org",
   "Bucket": "metrics",
-  "Token": "my-api-token",
+  "Token": { "$SECRET": "InfluxDbToken" },
   "Tags": {
     "host": "%COMPUTERNAME%",
     "user": "%USERNAME%",

@@ -7,7 +7,7 @@ Writes metrics measurements to a CSV file for analysis or integration with other
 
 This package provides:
 - **CsvMetricsConsumer**: A metrics consumer that writes measurements to CSV format
-- **CsvMetricsConsumerFeatureDriver**: An `ApplicationIdentityFeatureDriver` that manages the consumer lifecycle
+- **CsvMetricsConsumerOption**: The "Csv" option of the "Metrics" feature (its model: `CsvMetricsConsumerConfiguration`)
 
 ## Configuration
 
@@ -17,13 +17,13 @@ This package provides:
     "FullName": "MyDomain/$MyApp/#Dev",
     "Local": {
       "Metrics": {
-        "Path": "FasterLog/Metrics"
-      },
-      "MetricsCsv": {
-        "Name": "csv-export",
-        "Path": "Exports/metrics.csv",
-        "RetryDelayMs": 2000,
-        "BatchThresholdBytes": 4194304
+        "Path": "FasterLog/Metrics",
+        "Csv": {
+          "Name": "csv-export",
+          "Path": "Exports/metrics.csv",
+          "RetryDelayMs": 2000,
+          "BatchThresholdBytes": 4194304
+        }
       }
     }
   }
@@ -62,7 +62,7 @@ Timestamp,MeterName,InstrumentName,InstrumentType,Value,Tags
 ## Usage
 
 1. Add the package reference
-2. Configure both `Metrics` and `MetricsCsv` sections in your AppIdentity configuration
+2. Declare the "Metrics" feature and its "Csv" option (`"Csv": true` for the defaults) in the "Local" of the party
 3. The consumer starts automatically when the application starts
 
 The CSV file is created in append mode, so data persists across restarts. A header row is written

@@ -6,7 +6,9 @@ Integrates [CK.Monitoring.Metrics](../CK.Monitoring.Metrics/README.md) with
 ## Overview
 
 This package provides:
-- **MetricsFeatureDriver**: An `ApplicationIdentityFeatureDriver` that owns the shared FasterLog instance
+- **MetricsFeatureDriver**: An `ApplicationIdentityFeatureDriver` that owns the shared FasterLog instance (the optional
+  "Metrics" feature of the root party, its model `MetricsConfiguration`)
+- **IMetricsConsumerOption**: A consumer is an option of the "Metrics" feature (`"Metrics": { "Csv": { ... } }`)
 - **IMetricsConsumer / MetricsConsumerBase**: Interfaces and base class for implementing metrics consumers
 - **Automatic path resolution**: FasterLog storage uses the application's `LocalFileStore`
 
@@ -20,12 +22,15 @@ MetricsFeatureDriver (owns FasterLog)
     ├── Manages consumer registration
     ├── Handles truncation and orphan cleanup
     │
-    └── Consumers (registered via RegisterConsumer)
-        ├── (IMetricsConsumer implementations...)
+    └── Consumers: the enabled options of the feature (IMetricsConsumerOption)
+        ├── created, registered (RegisterConsumer) and started once the FasterLog is ready
         └── Each uses named FasterLog iterators
 ```
 
 ## Configuration
+
+The "Metrics" feature is optional: the root party declares it (`"Metrics": true` or its section). Its section is its
+model (`MetricsConfiguration`) and its consumers (its options: "Csv", "InfluxDb"...); any other key is an error.
 
 ```json
 {
@@ -86,42 +91,27 @@ public class MyMetricsConsumer : MetricsConsumerBase
 }
 ```
 
-Create a feature driver to register the consumer:
+Make it an option of the "Metrics" feature, with its configuration model: the driver creates the consumer once the
+FasterLog is ready, registers it, starts it, and disposes it on teardown.
 
 ```csharp
-// ByDefault: active unless the configuration turns it off ("MyConsumer": false);
-// Optional: active only when the configuration declares it ("MyConsumer": true or its section).
-[PartyFeature("MyConsumer", TypeActivation.ByDefault)]
-public class MyConsumerFeatureDriver : ApplicationIdentityFeatureDriver
+// "Metrics": { "Mine": { "Name": "my-consumer" } }
+[PartyFeatureOption( "Mine", TypeActivation.Optional )]
+[Configuration<MyConsumerConfiguration>]
+public sealed class MyConsumerOption : IMetricsConsumerOption
 {
-    readonly MetricsFeatureDriver _metricsDriver;
-    MyMetricsConsumer? _consumer;
+    readonly MyConsumerConfiguration _configuration;
 
-    public MyConsumerFeatureDriver(
-        ApplicationIdentityService s,
-        MetricsFeatureDriver metricsDriver)
-        : base(s)
-    {
-        _metricsDriver = metricsDriver; // DI ensures correct order
-    }
+    public MyConsumerOption( MyConsumerConfiguration configuration ) => _configuration = configuration;
 
-    protected override async Task<bool> SetupAsync(FeatureLifetimeContext context)
-    {
-        if (_metricsDriver.FasterLog == null) return true;
+    public IMetricsConsumer CreateConsumer( IActivityMonitor monitor, FasterLog log, ApplicationIdentityService party )
+        => new MyMetricsConsumer( log, _configuration.Name );
+}
 
-        _consumer = new MyMetricsConsumer(_metricsDriver.FasterLog, "my-consumer");
-        _metricsDriver.RegisterConsumer(_consumer);
-        await _consumer.StartAsync(context.Monitor, CancellationToken.None);
-        return true;
-    }
-
-    protected override async Task TeardownAsync(FeatureLifetimeContext context)
-    {
-        if (_consumer != null)
-        {
-            await _metricsDriver.RemoveConsumerAsync(_consumer.Name);
-        }
-    }
+[ConfigurationModel]
+public sealed class MyConsumerConfiguration
+{
+    public string Name { get; init; } = "my-consumer";
 }
 ```
 

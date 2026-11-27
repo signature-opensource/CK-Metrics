@@ -2,7 +2,6 @@ using CK.Core;
 using CK.Metrics;
 using CK.Monitoring;
 using FASTER.core;
-using Microsoft.Extensions.Configuration;
 
 namespace CK.AppIdentity.Monitoring.Metrics;
 
@@ -13,8 +12,10 @@ namespace CK.AppIdentity.Monitoring.Metrics;
 /// via <see cref="SetMetricsFasterLogAction"/>, and provides consumer registration.
 /// </para>
 /// <para>
-/// Consumer features (like CSV export) should depend on this driver via DI and call
-/// <see cref="RegisterConsumer"/> during their setup.
+/// The feature is optional: it is on when the root party declares it (<c>"Metrics": true</c> or its section, its model
+/// <see cref="MetricsConfiguration"/>). Its consumers are its options (<see cref="IMetricsConsumerOption"/>: "Csv",
+/// "InfluxDb"...): once the FasterLog is ready, the driver creates, registers and starts the consumer of each enabled
+/// option.
 /// </para>
 /// </summary>
 /// <remarks>
@@ -30,7 +31,8 @@ namespace CK.AppIdentity.Monitoring.Metrics;
 ///         "Path": "FasterLog/Metrics",
 ///         "MemoryPageCount": 2,
 ///         "TruncationIntervalMs": 60000,
-///         "HandlerWaitTimeoutMs": 30000
+///         "HandlerWaitTimeoutMs": 30000,
+///         "Csv": { "Path": "Exports/metrics.csv" }
 ///       }
 ///     }
 ///   }
@@ -53,7 +55,8 @@ namespace CK.AppIdentity.Monitoring.Metrics;
 /// }
 /// </code>
 /// </remarks>
-[PartyFeature( "Metrics", TypeActivation.ByDefault )]
+[PartyFeature( "Metrics", TypeActivation.Optional )]
+[Configuration<MetricsConfiguration>]
 public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
 {
     /// <summary>
@@ -137,30 +140,18 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
     {
         using var _ = context.Monitor.TemporarilySetAutoTags( DotNetMetrics.MetricsInternalTag );
 
-        // Read configuration from the Local:Metrics section.
-        var metricsSection = ApplicationIdentityService.LocalConfiguration.Configuration.GetSection( "Metrics" );
-        if( !metricsSection.Exists() )
+        // The feature is optional: the root party declares it ("Metrics": true or its section).
+        var party = ApplicationIdentityService;
+        if( !IsAllowedFeature( party ) )
         {
-            context.Monitor.Trace( "MetricsFeatureDriver: No Local:Metrics configuration found. Metrics not enabled." );
+            context.Monitor.Trace( "MetricsFeatureDriver: the \"Metrics\" feature is not declared. Metrics not enabled." );
             return true;
         }
-
-        // Parse configuration.
-        var relativePath = metricsSection["Path"] ?? DefaultFasterLogPath;
-        var basePath = ApplicationIdentityService.LocalFileStore.FolderPath;
-        var resolvedPath = basePath.Combine( relativePath );
-
-        int memoryPageCount = 2;
-        if( int.TryParse( metricsSection["MemoryPageCount"], out var mpc ) )
-            memoryPageCount = mpc;
-
-        _truncationIntervalMs = DefaultTruncationIntervalMs;
-        if( int.TryParse( metricsSection["TruncationIntervalMs"], out var tim ) )
-            _truncationIntervalMs = tim;
-
-        int handlerWaitTimeoutMs = DefaultHandlerWaitTimeoutMs;
-        if( int.TryParse( metricsSection["HandlerWaitTimeoutMs"], out var hwt ) )
-            handlerWaitTimeoutMs = hwt;
+        var configuration = GetModel<MetricsConfiguration>( party );
+        var resolvedPath = party.LocalFileStore.FolderPath.Combine( configuration.Path );
+        int memoryPageCount = configuration.MemoryPageCount;
+        _truncationIntervalMs = configuration.TruncationIntervalMs;
+        int handlerWaitTimeoutMs = configuration.HandlerWaitTimeoutMs;
 
         // Create the FasterLog directory if needed.
         Directory.CreateDirectory( resolvedPath );
@@ -216,6 +207,15 @@ public sealed class MetricsFeatureDriver : ApplicationIdentityFeatureDriver
         }
 
         context.Monitor.Info( $"MetricsFeatureDriver: Configured FasterLog at '{resolvedPath}'." );
+
+        // The consumers: the enabled options of the feature.
+        foreach( var option in GetOptions( party ).OfType<IMetricsConsumerOption>() )
+        {
+            var consumer = option.CreateConsumer( context.Monitor, _log, party );
+            RegisterConsumer( consumer );
+            await consumer.StartAsync( context.Monitor, CancellationToken.None );
+            context.Monitor.Info( $"MetricsFeatureDriver: Started the consumer '{consumer.Name}'." );
+        }
 
         // Start the truncation timer.
         if( _truncationIntervalMs > 0 )
